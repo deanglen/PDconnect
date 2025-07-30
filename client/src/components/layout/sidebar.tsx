@@ -44,17 +44,7 @@ export function Sidebar({ className = "" }: SidebarProps) {
         </ul>
       </nav>
       
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-        <div className="flex items-center">
-          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white text-sm font-semibold">
-            AD
-          </div>
-          <div className="ml-3">
-            <p className="text-sm font-medium text-gray-900">Admin User</p>
-            <p className="text-xs text-gray-500">admin@company.com</p>
-          </div>
-        </div>
-      </div>
+
     </aside>
   );
 }
