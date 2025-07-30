@@ -130,6 +130,60 @@ function WorkflowEditor({
     { value: 'Documents', label: 'Documents', description: 'Document storage and management' }
   ];
 
+  // PandaDoc webhook payload fields based on official API documentation
+  const pandaDocFields = [
+    // Core Document Fields
+    { value: 'data.id', label: 'Document ID', description: 'Unique document identifier' },
+    { value: 'data.name', label: 'Document Name', description: 'Document title/name' },
+    { value: 'data.status', label: 'Document Status', description: 'Current document status (e.g., document.completed)' },
+    { value: 'data.date_created', label: 'Date Created', description: 'Document creation timestamp' },
+    { value: 'data.date_modified', label: 'Date Modified', description: 'Last modification timestamp' },
+    { value: 'data.expiration_date', label: 'Expiration Date', description: 'Document expiration date' },
+    { value: 'data.version', label: 'Document Version', description: 'Document version number' },
+    
+    // Creator Information
+    { value: 'data.created_by.id', label: 'Creator ID', description: 'ID of user who created the document' },
+    { value: 'data.created_by.email', label: 'Creator Email', description: 'Email of document creator' },
+    { value: 'data.created_by.first_name', label: 'Creator First Name', description: 'First name of document creator' },
+    { value: 'data.created_by.last_name', label: 'Creator Last Name', description: 'Last name of document creator' },
+    
+    // Sender Information
+    { value: 'data.sent_by.id', label: 'Sender ID', description: 'ID of user who sent the document' },
+    { value: 'data.sent_by.email', label: 'Sender Email', description: 'Email of document sender' },
+    { value: 'data.sent_by.first_name', label: 'Sender First Name', description: 'First name of document sender' },
+    { value: 'data.sent_by.last_name', label: 'Sender Last Name', description: 'Last name of document sender' },
+    
+    // Financial Information
+    { value: 'data.total', label: 'Document Total', description: 'Total amount as string' },
+    { value: 'data.grand_total.amount', label: 'Grand Total Amount', description: 'Total amount with currency' },
+    { value: 'data.grand_total.currency', label: 'Currency', description: 'Currency code (e.g., USD)' },
+    
+    // Template Information
+    { value: 'data.template.id', label: 'Template ID', description: 'ID of template used' },
+    { value: 'data.template.name', label: 'Template Name', description: 'Name of template used' },
+    
+    // Recipients Information
+    { value: 'data.recipients[0].email', label: 'First Recipient Email', description: 'Email of first recipient' },
+    { value: 'data.recipients[0].first_name', label: 'First Recipient First Name', description: 'First name of first recipient' },
+    { value: 'data.recipients[0].last_name', label: 'First Recipient Last Name', description: 'Last name of first recipient' },
+    { value: 'data.recipients[0].role', label: 'First Recipient Role', description: 'Role of first recipient' },
+    { value: 'data.recipients[0].has_completed', label: 'First Recipient Completed', description: 'Whether first recipient has completed' },
+    
+    // Event Information
+    { value: 'event', label: 'Event Type', description: 'Type of webhook event triggered' }
+  ];
+
+  // Common document status values for easy reference
+  const documentStatusValues = [
+    { value: 'document.draft', label: 'Draft', description: 'Document is in draft state' },
+    { value: 'document.sent', label: 'Sent', description: 'Document has been sent' },
+    { value: 'document.viewed', label: 'Viewed', description: 'Document has been viewed' },
+    { value: 'document.completed', label: 'Completed', description: 'Document is completed/signed' },
+    { value: 'document.cancelled', label: 'Cancelled', description: 'Document has been cancelled' },
+    { value: 'document.declined', label: 'Declined', description: 'Document has been declined' },
+    { value: 'document.voided', label: 'Voided', description: 'Document has been voided' }
+  ];
+
   const addCondition = () => {
     setWorkflowData(prev => ({
       ...prev,
@@ -329,11 +383,34 @@ function WorkflowEditor({
             
             {workflowData.ifThenElseRules.if.map((condition, index) => (
               <div key={index} className="grid grid-cols-5 gap-2 mb-2">
-                <Input
-                  placeholder="Field name"
+                <Select
                   value={condition.field}
-                  onChange={(e) => updateCondition(index, 'field', e.target.value)}
-                />
+                  onValueChange={(value) => updateCondition(index, 'field', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select field" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60 overflow-y-auto">
+                    <div className="p-2 text-xs font-semibold text-gray-500 border-b">Document Fields</div>
+                    {pandaDocFields.filter(f => f.value.startsWith('data.')).map(field => (
+                      <SelectItem key={field.value} value={field.value} className="text-xs">
+                        <div>
+                          <div className="font-medium">{field.label}</div>
+                          <div className="text-gray-500">{field.description}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                    <div className="p-2 text-xs font-semibold text-gray-500 border-b border-t">Event Fields</div>
+                    {pandaDocFields.filter(f => !f.value.startsWith('data.')).map(field => (
+                      <SelectItem key={field.value} value={field.value} className="text-xs">
+                        <div>
+                          <div className="font-medium">{field.label}</div>
+                          <div className="text-gray-500">{field.description}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Select
                   value={condition.operator}
                   onValueChange={(value) => updateCondition(index, 'operator', value)}
@@ -349,11 +426,33 @@ function WorkflowEditor({
                     ))}
                   </SelectContent>
                 </Select>
-                <Input
-                  placeholder="Value"
-                  value={condition.value}
-                  onChange={(e) => updateCondition(index, 'value', e.target.value)}
-                />
+                {/* Smart value field with suggestions for document.status */}
+                {condition.field === 'data.status' ? (
+                  <Select
+                    value={condition.value}
+                    onValueChange={(value) => updateCondition(index, 'value', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {documentStatusValues.map(status => (
+                        <SelectItem key={status.value} value={status.value}>
+                          <div>
+                            <div className="font-medium">{status.label}</div>
+                            <div className="text-xs text-gray-500">{status.description}</div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    placeholder="Value"
+                    value={condition.value}
+                    onChange={(e) => updateCondition(index, 'value', e.target.value)}
+                  />
+                )}
                 <Select
                   value={condition.logicalOperator || 'AND'}
                   onValueChange={(value) => updateCondition(index, 'logicalOperator', value)}
