@@ -77,16 +77,20 @@ The application supports multiple tenant configurations, where each tenant has:
 ## External Dependencies
 
 ### SugarCRM Integration
-- **Authentication**: OAuth2 or username/password
-- **API Version**: REST API v10
+- **Authentication**: OAuth2 with custom platform "pandadoc_integration"
+- **API Version**: REST API v11 (upgraded for better compatibility)
+- **Token Management**: Automatic access token refresh with refresh token storage
+- **Error Handling**: Robust retry logic for expired tokens and API errors
 - **Modules**: Supports Opportunities, Contacts, Accounts, and other modules
 - **Field Discovery**: Dynamic field retrieval for mapping configuration
 
 ### PandaDoc Integration
-- **Authentication**: API Key-based
-- **Environment**: Supports sandbox and production environments
-- **Webhooks**: Handles document lifecycle events (signed, viewed, updated)
-- **Document Creation**: Template-based document generation with merge fields
+- **Authentication**: API Key-based (supports both sandbox and production keys)
+- **Environment**: Uses same base URL, environment determined by API key
+- **Webhooks**: HMAC-SHA256 signature verification for security
+- **Document Creation**: Template-based with tenant metadata injection
+- **Error Handling**: Comprehensive validation and error reporting
+- **Rate Limits**: Sandbox (10 req/min), Production (contact sales for high volume)
 
 ### Database
 - **Provider**: Neon serverless PostgreSQL
@@ -117,3 +121,25 @@ The application supports multiple tenant configurations, where each tenant has:
 - SugarCRM API credentials per tenant
 
 The application is designed to be deployed as a single service that handles both the web interface and API endpoints, with the database as the only external dependency requiring configuration.
+
+## Recent Updates - API Compliance & Best Practices
+
+### SugarCRM API Improvements (January 2025)
+- **Upgraded to REST API v11** for better stability and feature support
+- **Custom Platform Authentication**: Uses "pandadoc_integration" platform to prevent session conflicts
+- **Token Refresh Management**: Automatic access token refresh with secure refresh token storage
+- **Enhanced Error Handling**: Retry logic for 401 errors with automatic token refresh
+- **Improved Field Discovery**: Better parsing of field metadata and labels
+
+### PandaDoc API Improvements (January 2025)  
+- **Enhanced Webhook Security**: HMAC-SHA256 signature verification with timing-safe comparison
+- **Payload Validation**: Comprehensive webhook payload structure validation
+- **Tenant Identification**: Automatic tenant metadata injection in document creation
+- **Better Error Handling**: Detailed error messages and validation for document creation
+- **Production Ready**: Proper rate limiting awareness and error recovery patterns
+
+### Security Enhancements
+- **Webhook Signature Verification**: Implemented PandaDoc's HMAC-SHA256 verification
+- **Timing Attack Prevention**: Using crypto.timingSafeEqual for signature comparison
+- **Environment Variable Security**: Proper handling of webhook secrets and API keys
+- **Tenant Isolation**: Enhanced tenant identification from webhook payloads

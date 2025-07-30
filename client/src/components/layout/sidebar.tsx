@@ -29,15 +29,13 @@ export function Sidebar({ className = "" }: SidebarProps) {
             const isActive = location === item.href;
             return (
               <li key={item.name}>
-                <Link href={item.href}>
-                  <a className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
-                    isActive 
-                      ? 'bg-primary text-white' 
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}>
-                    <i className={`${item.icon} w-5 h-5 mr-3`}></i>
-                    {item.name}
-                  </a>
+                <Link href={item.href} className={`flex items-center px-3 py-2 rounded-lg transition-colors ${
+                  isActive 
+                    ? 'bg-primary text-white' 
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}>
+                  <i className={`${item.icon} w-5 h-5 mr-3`}></i>
+                  {item.name}
                 </Link>
               </li>
             );

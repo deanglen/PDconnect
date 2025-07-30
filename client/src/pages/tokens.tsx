@@ -107,7 +107,7 @@ export default function Tokens() {
                 <SelectItem value="Accounts">Accounts</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={refetchTokens} className="bg-primary text-white hover:bg-blue-700">
+            <Button onClick={() => refetchTokens()} className="bg-primary text-white hover:bg-blue-700">
               <i className="fas fa-sync mr-2"></i>
               Refresh
             </Button>

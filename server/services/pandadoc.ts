@@ -42,9 +42,9 @@ export class PandaDocService {
   private client: AxiosInstance;
 
   constructor(private tenant: Tenant) {
-    const baseURL = tenant.pandaDocSandbox 
-      ? 'https://api.pandadoc.com'
-      : 'https://api.pandadoc.com';
+    // PandaDoc uses the same base URL for both sandbox and production
+    // Sandbox is controlled by the API key itself
+    const baseURL = 'https://api.pandadoc.com';
 
     this.client = axios.create({
       baseURL,
@@ -54,14 +54,50 @@ export class PandaDocService {
         'Content-Type': 'application/json',
       },
     });
+
+    // Add response interceptor for better error handling
+    this.client.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.data?.detail) {
+          error.message = error.response.data.detail;
+        }
+        return Promise.reject(error);
+      }
+    );
   }
 
   async createDocument(request: CreateDocumentRequest): Promise<CreateDocumentResponse> {
     try {
+      // Validate required fields
+      if (!request.template_uuid) {
+        throw new Error('Template UUID is required');
+      }
+      if (!request.recipients || request.recipients.length === 0) {
+        throw new Error('At least one recipient is required');
+      }
+
+      // Ensure recipients have required fields
+      request.recipients.forEach((recipient, index) => {
+        if (!recipient.email) {
+          throw new Error(`Recipient ${index + 1} must have an email address`);
+        }
+        if (!recipient.role) {
+          recipient.role = 'Signer'; // Default role
+        }
+      });
+
+      // Add metadata for tenant identification in webhooks
+      if (!request.metadata) {
+        request.metadata = {};
+      }
+      request.metadata.tenant_id = this.tenant.id;
+
       const response = await this.client.post('/public/v1/documents', request);
       return response.data;
     } catch (error: any) {
-      throw new Error(`Failed to create PandaDoc document: ${error.response?.data?.detail || error.message}`);
+      const errorMessage = error.response?.data?.detail || error.message;
+      throw new Error(`Failed to create PandaDoc document: ${errorMessage}`);
     }
   }
 

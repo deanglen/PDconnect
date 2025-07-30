@@ -168,7 +168,7 @@ export default function Tenants() {
                         <FormItem>
                           <FormLabel>SugarCRM Username</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder="admin" />
+                            <Input {...field} value={field.value || ""} placeholder="admin" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -181,7 +181,7 @@ export default function Tenants() {
                         <FormItem>
                           <FormLabel>SugarCRM Password</FormLabel>
                           <FormControl>
-                            <Input {...field} type="password" placeholder="********" />
+                            <Input {...field} value={field.value || ""} type="password" placeholder="********" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -210,7 +210,7 @@ export default function Tenants() {
                       render={({ field }) => (
                         <FormItem className="flex items-center space-x-2">
                           <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            <Switch checked={field.value || false} onCheckedChange={field.onChange} />
                           </FormControl>
                           <FormLabel>Use PandaDoc Sandbox</FormLabel>
                         </FormItem>
@@ -223,7 +223,7 @@ export default function Tenants() {
                       render={({ field }) => (
                         <FormItem className="flex items-center space-x-2">
                           <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                            <Switch checked={field.value || false} onCheckedChange={field.onChange} />
                           </FormControl>
                           <FormLabel>Active</FormLabel>
                         </FormItem>

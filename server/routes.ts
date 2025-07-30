@@ -138,23 +138,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const signature = req.headers['x-pd-signature'] as string;
       const payload = JSON.stringify(req.body);
 
-      // Verify webhook signature
-      const webhookSecret = process.env.PANDADOC_WEBHOOK_SECRET || 'webhook-secret-placeholder';
-      if (!WebhookVerifier.verifyPandaDocSignature(payload, signature, webhookSecret)) {
+      // Validate webhook payload structure first
+      if (!WebhookVerifier.validateWebhookPayload(req.body)) {
+        return res.status(400).json({ message: "Invalid webhook payload structure" });
+      }
+
+      // Verify webhook signature for security
+      const webhookSecret = process.env.PANDADOC_WEBHOOK_SECRET;
+      if (webhookSecret && !WebhookVerifier.verifyPandaDocSignature(payload, signature, webhookSecret)) {
+        console.warn('Webhook signature verification failed');
         return res.status(401).json({ message: "Invalid webhook signature" });
       }
 
       const eventType = req.body.event_type;
-      const documentData = req.body.data;
 
-      // Find tenant from document metadata or payload
+      // Find tenant from document metadata
       const tenantId = WebhookVerifier.extractTenantFromPayload(req.body);
       if (!tenantId) {
+        console.error('Unable to identify tenant from webhook payload');
         return res.status(400).json({ message: "Unable to identify tenant" });
       }
 
       const tenant = await storage.getTenant(tenantId);
       if (!tenant) {
+        console.error(`Tenant not found: ${tenantId}`);
         return res.status(404).json({ message: "Tenant not found" });
       }
 
