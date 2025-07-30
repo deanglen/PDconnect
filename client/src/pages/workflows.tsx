@@ -158,12 +158,20 @@ function WorkflowEditor({
     if (configMode === 'json') {
       try {
         const parsedConfig = JSON.parse(jsonConfig);
+        if (!parsedConfig.name || !parsedConfig.triggerEvent) {
+          alert('Name and trigger event are required');
+          return;
+        }
         onSave(parsedConfig);
       } catch (error) {
         alert('Invalid JSON configuration');
         return;
       }
     } else {
+      if (!workflowData.name || !workflowData.triggerEvent) {
+        alert('Name and trigger event are required');
+        return;
+      }
       onSave(workflowData);
     }
   };
@@ -471,6 +479,11 @@ function WorkflowEditor({
         </TabsContent>
 
         <TabsContent value="json" className="space-y-4">
+          <Alert>
+            <AlertDescription>
+              Configure your workflow using JSON. This provides full control over advanced features like complex conditional logic, custom action parameters, and advanced workflow settings.
+            </AlertDescription>
+          </Alert>
           <div>
             <Label htmlFor="jsonConfig">JSON Configuration</Label>
             <Textarea
@@ -478,18 +491,37 @@ function WorkflowEditor({
               value={jsonConfig}
               onChange={(e) => setJsonConfig(e.target.value)}
               placeholder={JSON.stringify({
-                name: "Example Workflow",
-                description: "Example workflow description",
-                triggerEvent: "document_signed",
+                name: "High Value Deal Notification",
+                description: "Send notification for deals over $10,000",
+                triggerEvent: "document_created",
                 ifThenElseRules: {
-                  if: [{ field: "document.status", operator: "equals", value: "completed" }],
-                  then: [{ type: "update_sugarcrm", module: "Opportunities", field: "sales_stage", value: "Closed Won" }],
-                  else: [{ type: "log_activity", subject: "Document not completed" }]
+                  if: [{ field: "amount", operator: "greater_than", value: "10000" }],
+                  then: [
+                    { type: "update_sugarcrm", module: "Opportunities", field: "sales_stage", value: "Negotiation" },
+                    { type: "send_notification", recipients: ["manager@company.com"], subject: "High Value Deal Alert" }
+                  ],
+                  else: [
+                    { type: "log_activity", subject: "Standard deal created" }
+                  ]
                 },
-                isActive: true
+                priority: 200,
+                timeout: 60,
+                isActive: true,
+                configMode: "json"
               }, null, 2)}
               className="h-96 font-mono text-sm"
             />
+          </div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="font-semibold mb-2">Available trigger events:</p>
+            <ul className="list-disc list-inside space-y-1">
+              <li><code>document_signed</code> - Document completed and signed</li>
+              <li><code>document_viewed</code> - Document opened by recipient</li>
+              <li><code>document_created</code> - New document created</li>
+              <li><code>document_declined</code> - Document declined by recipient</li>
+              <li><code>document_completed</code> - Document fully processed</li>
+              <li><code>document_voided</code> - Document voided</li>
+            </ul>
           </div>
         </TabsContent>
       </Tabs>
@@ -532,13 +564,7 @@ export default function Workflows() {
   // Create workflow mutation
   const createWorkflow = useMutation({
     mutationFn: async (workflowData: any) => {
-      const response = await fetch('/api/workflows', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...workflowData, tenantId: selectedTenant }),
-      });
-      if (!response.ok) throw new Error('Failed to create workflow');
-      return response.json();
+      return api.createWorkflow({ ...workflowData, tenantId: selectedTenant });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/workflows', selectedTenant] });
@@ -547,7 +573,12 @@ export default function Workflows() {
       toast({ title: "Success", description: "Workflow created successfully" });
     },
     onError: (error) => {
-      toast({ title: "Error", description: "Failed to create workflow", variant: "destructive" });
+      console.error('Workflow creation error:', error);
+      toast({ 
+        title: "Error", 
+        description: error instanceof Error ? error.message : "Failed to create workflow", 
+        variant: "destructive" 
+      });
     },
   });
 

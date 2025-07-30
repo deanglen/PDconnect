@@ -145,6 +145,23 @@ The application is designed to be deployed as a single service that handles both
 - **Environment Variable Security**: Proper handling of webhook secrets and API keys
 - **Tenant Isolation**: Enhanced tenant identification from webhook payloads
 
+## Recent Updates - Advanced Workflow Configuration System (January 2025)
+
+### Comprehensive Workflow Management Features
+- **Enhanced IF/THEN/ELSE Logic**: Implemented sophisticated conditional workflow rules with support for multiple conditions, logical operators (AND/OR), and complex decision trees
+- **Dual Configuration Interfaces**: Added both point-and-click visual workflow builder and advanced JSON-based configuration for power users
+- **Webhook Endpoint Integration**: Clear display of PandaDoc webhook endpoints with tenant-specific URLs for easy configuration
+- **Multiple Action Support**: Each workflow can execute multiple actions per event with priority-based execution and timeout management
+- **Advanced Conditional Logic**: Support for complex field comparisons, value matching, and dynamic SugarCRM field updates
+- **Configuration Mode Tracking**: Workflows maintain metadata about whether they were created via visual builder or JSON config
+- **Enhanced Workflow Display**: Visual representation of IF/THEN/ELSE logic with color-coded condition and action blocks
+
+### Workflow Creation Testing Results
+- **API Integration**: Successfully tested workflow creation via REST API with comprehensive validation
+- **Database Schema**: Enhanced workflows table with `ifThenElseRules`, `elseActions`, `priority`, `timeout`, and `configMode` fields
+- **Real-Time Updates**: Workflow creation immediately reflects in the UI with proper cache invalidation
+- **Validation**: Robust client and server-side validation for required fields and proper JSON configuration
+
 ## Recent Updates - Production-Ready Enhancements (January 2025)
 
 ### Operational Excellence Features
