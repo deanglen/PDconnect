@@ -813,20 +813,20 @@ export default function Workflows() {
                             {workflow.isActive ? "Active" : "Inactive"}
                           </Badge>
                           <Button 
-                            variant="ghost" 
+                            variant="outline" 
                             size="sm" 
-                            className="text-gray-400 hover:text-gray-600"
+                            className="text-blue-600 hover:text-blue-700 border-blue-200"
                             onClick={() => handleEditWorkflow(workflow)}
                           >
-                            <i className="fas fa-edit"></i>
+                            Edit
                           </Button>
                           <Button 
-                            variant="ghost" 
+                            variant="outline" 
                             size="sm" 
-                            className="text-red-600 hover:text-red-700"
+                            className="text-red-600 hover:text-red-700 border-red-200"
                             onClick={() => handleDeleteWorkflow(workflow.id)}
                           >
-                            <i className="fas fa-trash"></i>
+                            Delete
                           </Button>
                         </div>
                       </div>
