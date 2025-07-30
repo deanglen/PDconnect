@@ -82,7 +82,7 @@ function WorkflowEditor({
     { value: 'recipient_completed', label: 'Recipient Completed', description: 'When a recipient completes their part of the document' },
     { value: 'document_updated', label: 'Document Updated', description: 'When a document is updated or modified' },
     { value: 'document_deleted', label: 'Document Deleted', description: 'When a document is deleted' },
-    { value: 'document_state_changed', label: 'Document State Changed', description: 'When the document status changes (draft, sent, completed, etc.)' },
+    { value: 'document_state_changed', label: 'Document Status Changed', description: 'When the document status changes (draft, sent, completed, etc.)' },
     { value: 'document_creation_failed', label: 'Document Creation Failed', description: 'When document creation fails' },
     { value: 'document_completed_pdf_ready', label: 'Document Completed & PDF Ready', description: 'When document is completed and PDF is ready for download' },
     { value: 'document_section_added', label: 'Document Section Added', description: 'When a section is added to a document' },
@@ -1087,7 +1087,9 @@ export default function Workflows() {
                             <p className="text-sm text-gray-500 dark:text-gray-400">{workflow.description}</p>
                             <div className="flex items-center space-x-2 mt-1">
                               <Badge variant="outline" className="text-xs">
-                                {workflow.triggerEvent.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                                {workflow.triggerEvent.split('_').map((word: string) => 
+                                  word.charAt(0).toUpperCase() + word.slice(1)
+                                ).join(' ')}
                               </Badge>
                               {workflow.configMode && (
                                 <Badge variant="secondary" className="text-xs">
@@ -1152,8 +1154,29 @@ export default function Workflows() {
                                 {workflow.ifThenElseRules.then.map((action: any, index: number) => (
                                   <div key={index} className="text-sm text-green-700 dark:text-green-300">
                                     <i className="fas fa-arrow-right mr-2"></i>
+                                    {action.type === 'update_record' && (
+                                      <span>Update {action.module}.{action.field} to "{action.value}"</span>
+                                    )}
                                     {action.type === 'update_sugarcrm' && (
                                       <span>Update {action.module}.{action.field} to "{action.value}"</span>
+                                    )}
+                                    {action.type === 'create_note' && (
+                                      <span>Create note: {action.name || action.subject}</span>
+                                    )}
+                                    {action.type === 'create_task' && (
+                                      <span>Create task: {action.name || action.subject}</span>
+                                    )}
+                                    {action.type === 'create_call' && (
+                                      <span>Create call activity: {action.name || action.subject}</span>
+                                    )}
+                                    {action.type === 'create_meeting' && (
+                                      <span>Create meeting: {action.name || action.subject}</span>
+                                    )}
+                                    {action.type === 'attach_file' && (
+                                      <span>Attach file to {action.module}</span>
+                                    )}
+                                    {action.type === 'send_email' && (
+                                      <span>Send email: {action.subject}</span>
                                     )}
                                     {action.type === 'send_notification' && (
                                       <span>Send notification: {action.subject}</span>
@@ -1177,8 +1200,29 @@ export default function Workflows() {
                                 {workflow.ifThenElseRules.else.map((action: any, index: number) => (
                                   <div key={index} className="text-sm text-orange-700 dark:text-orange-300">
                                     <i className="fas fa-arrow-right mr-2"></i>
+                                    {action.type === 'update_record' && (
+                                      <span>Update {action.module}.{action.field} to "{action.value}"</span>
+                                    )}
                                     {action.type === 'update_sugarcrm' && (
                                       <span>Update {action.module}.{action.field} to "{action.value}"</span>
+                                    )}
+                                    {action.type === 'create_note' && (
+                                      <span>Create note: {action.name || action.subject}</span>
+                                    )}
+                                    {action.type === 'create_task' && (
+                                      <span>Create task: {action.name || action.subject}</span>
+                                    )}
+                                    {action.type === 'create_call' && (
+                                      <span>Create call activity: {action.name || action.subject}</span>
+                                    )}
+                                    {action.type === 'create_meeting' && (
+                                      <span>Create meeting: {action.name || action.subject}</span>
+                                    )}
+                                    {action.type === 'attach_file' && (
+                                      <span>Attach file to {action.module}</span>
+                                    )}
+                                    {action.type === 'send_email' && (
+                                      <span>Send email: {action.subject}</span>
                                     )}
                                     {action.type === 'log_activity' && (
                                       <span>Log activity: {action.subject}</span>
