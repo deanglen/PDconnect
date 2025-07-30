@@ -54,24 +54,28 @@ function WorkflowEditor({
   isLoading: boolean;
 }) {
   const [workflowData, setWorkflowData] = useState({
-    name: '',
-    description: '',
-    triggerEvent: 'document_signed',
-    conditions: [] as WorkflowCondition[],
-    ifThenElseRules: { 
+    name: editingWorkflow?.name || '',
+    description: editingWorkflow?.description || '',
+    triggerEvent: editingWorkflow?.triggerEvent || 'document_signed',
+    conditions: editingWorkflow?.conditions || [] as WorkflowCondition[],
+    ifThenElseRules: editingWorkflow?.ifThenElseRules || { 
       if: [] as WorkflowCondition[], 
       then: [] as WorkflowAction[], 
       else: [] as WorkflowAction[] 
     },
-    actions: [] as WorkflowAction[],
-    elseActions: [] as WorkflowAction[],
-    priority: 100,
-    timeout: 30,
-    isActive: true,
+    actions: editingWorkflow?.actions || [] as WorkflowAction[],
+    elseActions: editingWorkflow?.elseActions || [] as WorkflowAction[],
+    priority: editingWorkflow?.priority || 100,
+    timeout: editingWorkflow?.timeout || 30,
+    isActive: editingWorkflow?.isActive ?? true,
     configMode: configMode
   });
 
-  const [jsonConfig, setJsonConfig] = useState('');
+  const [jsonConfig, setJsonConfig] = useState(
+    editingWorkflow && configMode === 'json' 
+      ? JSON.stringify(editingWorkflow, null, 2) 
+      : ''
+  );
 
   const triggerEvents = [
     { value: 'document_signed', label: 'Document Signed' },
@@ -582,6 +586,66 @@ export default function Workflows() {
     },
   });
 
+  // Update workflow mutation
+  const updateWorkflow = useMutation({
+    mutationFn: async (workflowData: any) => {
+      return api.updateWorkflow(editingWorkflow.id, workflowData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/workflows', selectedTenant] });
+      setIsDialogOpen(false);
+      setEditingWorkflow(null);
+      toast({ title: "Success", description: "Workflow updated successfully" });
+    },
+    onError: (error) => {
+      console.error('Workflow update error:', error);
+      toast({ 
+        title: "Error", 
+        description: error instanceof Error ? error.message : "Failed to update workflow", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  // Delete workflow mutation
+  const deleteWorkflow = useMutation({
+    mutationFn: async (workflowId: string) => {
+      return api.deleteWorkflow(workflowId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/workflows', selectedTenant] });
+      toast({ title: "Success", description: "Workflow deleted successfully" });
+    },
+    onError: (error) => {
+      console.error('Workflow deletion error:', error);
+      toast({ 
+        title: "Error", 
+        description: error instanceof Error ? error.message : "Failed to delete workflow", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const handleEditWorkflow = (workflow: any) => {
+    setEditingWorkflow(workflow);
+    setConfigMode(workflow.configMode || 'point_click');
+    setIsDialogOpen(true);
+  };
+
+  const handleDeleteWorkflow = (workflowId: string) => {
+    if (confirm('Are you sure you want to delete this workflow? This action cannot be undone.')) {
+      deleteWorkflow.mutate(workflowId);
+    }
+  };
+
+  const handleSaveWorkflow = (workflowData: any) => {
+    if (editingWorkflow) {
+      updateWorkflow.mutate(workflowData);
+    } else {
+      createWorkflow.mutate(workflowData);
+    }
+  };
+
   const sampleWorkflows = [
     {
       id: '1',
@@ -649,13 +713,18 @@ export default function Workflows() {
                 ))}
               </SelectContent>
             </Select>
+            <Button 
+              onClick={() => {
+                setEditingWorkflow(null);
+                setIsDialogOpen(true);
+              }}
+              disabled={!selectedTenant}
+              className="bg-primary text-white hover:bg-blue-700"
+            >
+              <i className="fas fa-plus mr-2"></i>
+              Add Workflow
+            </Button>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-primary text-white hover:bg-blue-700" disabled={!selectedTenant}>
-                  <i className="fas fa-plus mr-2"></i>
-                  Add Workflow
-                </Button>
-              </DialogTrigger>
               <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>
@@ -666,8 +735,8 @@ export default function Workflows() {
                   configMode={configMode}
                   setConfigMode={setConfigMode}
                   editingWorkflow={editingWorkflow}
-                  onSave={(workflowData) => createWorkflow.mutate(workflowData)}
-                  isLoading={createWorkflow.isPending}
+                  onSave={handleSaveWorkflow}
+                  isLoading={createWorkflow.isPending || updateWorkflow.isPending}
                 />
               </DialogContent>
             </Dialog>
@@ -743,10 +812,20 @@ export default function Workflows() {
                           <Badge variant={workflow.isActive ? "default" : "secondary"}>
                             {workflow.isActive ? "Active" : "Inactive"}
                           </Badge>
-                          <Button variant="ghost" size="sm" className="text-gray-400 hover:text-gray-600">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-gray-400 hover:text-gray-600"
+                            onClick={() => handleEditWorkflow(workflow)}
+                          >
                             <i className="fas fa-edit"></i>
                           </Button>
-                          <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => handleDeleteWorkflow(workflow.id)}
+                          >
                             <i className="fas fa-trash"></i>
                           </Button>
                         </div>
