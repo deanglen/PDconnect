@@ -188,9 +188,40 @@ function WorkflowEditor({
     }
   };
 
+  // Sync data when switching tabs
+  const handleTabChange = (value: string) => {
+    if (value === 'json' && configMode === 'point_click') {
+      // Switching from point & click to JSON - update JSON with current workflow data
+      setJsonConfig(JSON.stringify(workflowData, null, 2));
+    } else if (value === 'point_click' && configMode === 'json') {
+      // Switching from JSON to point & click - try to parse JSON into workflow data
+      try {
+        const parsed = JSON.parse(jsonConfig);
+        setWorkflowData({
+          name: parsed.name || '',
+          description: parsed.description || '',
+          triggerEvent: parsed.triggerEvent || 'document_state_changed',
+          conditions: parsed.conditions || [],
+          ifThenElseRules: parsed.ifThenElseRules || { if: [], then: [], else: [] },
+          actions: parsed.actions || [],
+          elseActions: parsed.elseActions || [],
+          priority: parsed.priority || 100,
+          timeout: parsed.timeout || 30,
+          isActive: parsed.isActive ?? true,
+          configMode: 'point_click'
+        });
+      } catch (error) {
+        // If JSON is invalid, don't switch tabs and show error
+        alert('Invalid JSON configuration. Please fix the JSON before switching to Point & Click mode.');
+        return;
+      }
+    }
+    setConfigMode(value as 'point_click' | 'json');
+  };
+
   return (
     <div className="space-y-6">
-      <Tabs value={configMode} onValueChange={(value) => setConfigMode(value as 'point_click' | 'json')}>
+      <Tabs value={configMode} onValueChange={handleTabChange}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="point_click">Point & Click Builder</TabsTrigger>
           <TabsTrigger value="json">JSON Configuration</TabsTrigger>
@@ -536,47 +567,68 @@ function WorkflowEditor({
         <TabsContent value="json" className="space-y-4">
           <Alert>
             <AlertDescription>
-              Configure your workflow using JSON. This provides full control over advanced features like complex conditional logic, custom action parameters, and advanced workflow settings.
+              <div className="space-y-2">
+                <h4 className="font-medium">JSON Configuration</h4>
+                <p className="text-sm">
+                  Edit the workflow configuration directly in JSON format. Any changes made in the Point & Click builder will be automatically reflected here.
+                </p>
+                <p className="text-xs text-gray-600">
+                  <strong>Tip:</strong> Switch back to Point & Click mode to see your JSON changes reflected in the visual interface.
+                </p>
+              </div>
             </AlertDescription>
           </Alert>
           <div>
-            <Label htmlFor="jsonConfig">JSON Configuration</Label>
+            <Label htmlFor="jsonConfig" className="text-sm font-medium">
+              Workflow JSON Configuration
+            </Label>
             <Textarea
               id="jsonConfig"
               value={jsonConfig}
               onChange={(e) => setJsonConfig(e.target.value)}
               placeholder={JSON.stringify({
-                name: "High Value Deal Notification",
-                description: "Send notification for deals over $10,000",
-                triggerEvent: "document_created",
+                name: "Document Completion Workflow",
+                description: "Update opportunity when document is completed",
+                triggerEvent: "document_state_changed",
                 ifThenElseRules: {
-                  if: [{ field: "amount", operator: "greater_than", value: "10000" }],
+                  if: [{ field: "document.status", operator: "equals", value: "completed" }],
                   then: [
-                    { type: "update_sugarcrm", module: "Opportunities", field: "sales_stage", value: "Negotiation" },
-                    { type: "send_notification", recipients: ["manager@company.com"], subject: "High Value Deal Alert" }
+                    { type: "update_sugarcrm", module: "Opportunities", field: "sales_stage", value: "Closed Won" },
+                    { type: "attach_document", module: "Opportunities", field: "documents" }
                   ],
                   else: [
-                    { type: "log_activity", subject: "Standard deal created" }
+                    { type: "log_activity", subject: "Document status changed but not completed" }
                   ]
                 },
-                priority: 200,
-                timeout: 60,
+                priority: 100,
+                timeout: 30,
                 isActive: true,
                 configMode: "json"
               }, null, 2)}
-              className="h-96 font-mono text-sm"
+              className="h-96 font-mono text-sm mt-2"
             />
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">
-            <p className="font-semibold mb-2">Available trigger events:</p>
-            <ul className="list-disc list-inside space-y-1">
-              <li><code>document_signed</code> - Document completed and signed</li>
-              <li><code>document_viewed</code> - Document opened by recipient</li>
-              <li><code>document_created</code> - New document created</li>
-              <li><code>document_declined</code> - Document declined by recipient</li>
-              <li><code>document_completed</code> - Document fully processed</li>
-              <li><code>document_voided</code> - Document voided</li>
-            </ul>
+            <p className="font-semibold mb-2">Official PandaDoc Webhook Events:</p>
+            <div className="grid grid-cols-2 gap-4">
+              <ul className="list-disc list-inside space-y-1 text-xs">
+                <li><code>recipient_completed</code> - Recipient completed their part</li>
+                <li><code>document_updated</code> - Document was updated</li>
+                <li><code>document_deleted</code> - Document was deleted</li>
+                <li><code>document_state_changed</code> - Document status changed</li>
+                <li><code>document_creation_failed</code> - Document creation failed</li>
+                <li><code>document_completed_pdf_ready</code> - Document completed & PDF ready</li>
+                <li><code>document_section_added</code> - Section added to document</li>
+              </ul>
+              <ul className="list-disc list-inside space-y-1 text-xs">
+                <li><code>quote_updated</code> - Quote was updated</li>
+                <li><code>template_created</code> - Template was created</li>
+                <li><code>template_updated</code> - Template was updated</li>
+                <li><code>template_deleted</code> - Template was deleted</li>
+                <li><code>content_library_item_created</code> - Content library item created</li>
+                <li><code>content_library_item_creation_failed</code> - Content library creation failed</li>
+              </ul>
+            </div>
           </div>
         </TabsContent>
       </Tabs>
