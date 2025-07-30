@@ -300,7 +300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       logger.error('Webhook endpoint error', {
-        tenantId: tenantId || 'unknown',
+        tenantId: (tenantId as string) || 'unknown',
         requestId: (req as any).requestId
       }, error);
       res.status(500).json({ message: "Failed to process webhook" });
@@ -357,7 +357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       logger.error('Get tokens error', {
-        tenantId: tenantId as string,
+        tenantId: (req.query.tenantId as string) || 'unknown',
         requestId: (req as any).requestId
       }, error);
       
@@ -656,10 +656,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add to retry queue if it's a recoverable error
       if (error.message.includes('timeout') || error.message.includes('rate limit')) {
         try {
-          await retryQueue.addToQueue('create_document', req.body, {
-            maxRetries: 3,
-            retryDelay: 5000
-          });
+          retryQueue.addJob(req.body.tenantId || 'unknown', 'create_document', req.body, 3);
           
           res.status(202).json({ 
             message: "Document creation queued for retry due to temporary error",
@@ -808,6 +805,223 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const requestId = (req as any).requestId;
       logger.error('Failed to delete document template', { requestId }, error);
       res.status(500).json({ message: "Failed to delete document template", error: error.message });
+    }
+  });
+
+  // MAIN INTEGRATION ENDPOINT: Create document from SugarCRM record
+  app.post("/create-doc", async (req: Request, res: Response) => {
+    const requestId = (req as any).requestId;
+    
+    try {
+      // Validate required parameters
+      const { record_id, module, tenant_id, template_id } = req.body;
+      
+      if (!record_id || !module || !tenant_id || !template_id) {
+        logger.error('Missing required parameters for document creation', { requestId }, {
+          record_id: !!record_id,
+          module: !!module, 
+          tenant_id: !!tenant_id,
+          template_id: !!template_id
+        });
+        
+        return res.status(400).json({
+          error: "Missing required parameters",
+          required: ["record_id", "module", "tenant_id", "template_id"],
+          message: "Please provide record_id, module, tenant_id, and template_id"
+        });
+      }
+
+      logger.info('Document creation request received', { requestId }, {
+        record_id,
+        module,
+        tenant_id,
+        template_id
+      });
+
+      // 1. Get tenant configuration
+      const tenant = await storage.getTenant(tenant_id);
+      if (!tenant) {
+        logger.error('Tenant not found', { requestId }, { tenant_id });
+        return res.status(404).json({
+          error: "Tenant not found",
+          message: `No tenant found with ID: ${tenant_id}`
+        });
+      }
+
+      if (!tenant.isActive) {
+        logger.error('Tenant is inactive', { requestId }, { tenant_id });
+        return res.status(403).json({
+          error: "Tenant inactive",
+          message: "This tenant configuration is currently inactive"
+        });
+      }
+
+      // 2. Fetch SugarCRM record data
+      logger.info('Fetching SugarCRM record data', { requestId }, { record_id, module });
+      
+      const sugarCrmService = new SugarCRMService(tenant);
+
+      const recordData = await sugarCrmService.getRecord(module, record_id);
+      if (!recordData) {
+        logger.error('SugarCRM record not found', { requestId }, { record_id, module });
+        return res.status(404).json({
+          error: "Record not found",
+          message: `No ${module} record found with ID: ${record_id}`
+        });
+      }
+
+      logger.info('SugarCRM record data retrieved', { requestId }, {
+        record_id,
+        module,
+        fieldCount: Object.keys(recordData).length
+      });
+
+      // 3. Generate PandaDoc tokens from SugarCRM fields
+      const tokens: Array<{ name: string; value: string }> = [];
+      
+      // Convert all SugarCRM fields to PandaDoc tokens
+      Object.entries(recordData).forEach(([fieldName, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          // Create token name from field name (e.g., 'first_name' -> 'first_name')
+          tokens.push({
+            name: fieldName,
+            value: String(value)
+          });
+        }
+      });
+
+      // Add metadata tokens
+      tokens.push({ name: 'sugar_record_id', value: record_id });
+      tokens.push({ name: 'sugar_module', value: module });
+      tokens.push({ name: 'creation_date', value: new Date().toISOString().split('T')[0] });
+
+      logger.info('Generated PandaDoc tokens', { requestId }, {
+        tokenCount: Object.keys(tokens).length,
+        sampleTokens: Object.keys(tokens).slice(0, 5)
+      });
+
+      // 4. Get recipients from SugarCRM record or use defaults
+      const recipients = [];
+      
+      // Try to extract email from common SugarCRM email fields
+      const emailFields = ['email1', 'email', 'email_address', 'primary_email'];
+      let emailValue = null;
+      for (const field of emailFields) {
+        if (recordData[field]) {
+          emailValue = recordData[field];
+          break;
+        }
+      }
+      
+      if (emailValue) {
+        recipients.push({
+          email: emailValue,
+          first_name: recordData.first_name || recordData.name || "Recipient",
+          last_name: recordData.last_name || "",
+          role: "signer"
+        });
+      } else {
+        // Use a default recipient - could be configured per tenant
+        recipients.push({
+          email: "demo@example.com",
+          first_name: "Demo",
+          last_name: "Recipient", 
+          role: "signer"
+        });
+      }
+
+      // 5. Create document via PandaDoc API
+      const pandaDocService = new PandaDocService(tenant);
+
+      const documentRequest = {
+        name: `${module} - ${recordData.name || recordData.first_name || record_id}`,
+        template_uuid: template_id,
+        recipients,
+        tokens,
+        metadata: {
+          sugar_record_id: record_id,
+          sugar_module: module,
+          tenant_id: tenant_id,
+          created_via: "middleware_api"
+        }
+      };
+
+      logger.info('Creating PandaDoc document', { requestId }, {
+        template_id,
+        recipientCount: recipients.length,
+        tokenCount: Object.keys(tokens).length
+      });
+
+      const pandaDocResponse = await pandaDocService.createDocument(documentRequest);
+
+      // 6. Store document record
+      const documentRecord = {
+        tenantId: tenant_id,
+        pandaDocId: pandaDocResponse.id,
+        sugarRecordId: record_id,
+        sugarModule: module,
+        name: documentRequest.name,
+        status: pandaDocResponse.status,
+        publicUrl: null, // Will be updated when document is completed
+        downloadUrl: null // Will be updated when document is completed
+      };
+
+      const savedDocument = await storage.createDocument(documentRecord);
+
+      logger.info('Document created successfully', { requestId }, {
+        documentId: pandaDocResponse.id,
+        sugarRecordId: record_id,
+        module,
+        status: pandaDocResponse.status
+      });
+
+      // 7. Return document information to SugarCRM
+      const response = {
+        success: true,
+        document: {
+          id: pandaDocResponse.id,
+          name: documentRequest.name,
+          status: pandaDocResponse.status,
+          public_url: null, // Available after document is completed
+          download_url: null, // Available after document is completed
+          created_date: new Date().toISOString()
+        },
+        sugar_crm: {
+          record_id,
+          module
+        },
+        metadata: {
+          tenant_id,
+          template_id,
+          token_count: Object.keys(tokens).length,
+          recipient_count: recipients.length
+        }
+      };
+
+      res.status(201).json(response);
+
+    } catch (error: any) {
+      logger.error('Document creation failed', { requestId }, error);
+      
+      // Add to retry queue for failed operations
+      if (req.body.record_id && req.body.module && req.body.tenant_id) {
+        retryQueue.addJob(req.body.tenant_id || 'unknown', 'create_document', {
+          record_id: req.body.record_id,
+          module: req.body.module,
+          tenant_id: req.body.tenant_id,
+          template_id: req.body.template_id,
+          timestamp: new Date().toISOString(),
+          error_message: error.message
+        }, 3);
+      }
+
+      res.status(500).json({
+        error: "Document creation failed",
+        message: error.message,
+        record_id: req.body.record_id,
+        module: req.body.module,
+        timestamp: new Date().toISOString()
+      });
     }
   });
 
