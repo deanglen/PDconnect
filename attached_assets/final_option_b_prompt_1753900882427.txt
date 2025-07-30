@@ -1,0 +1,90 @@
+
+Prompt: Build Middleware for PandaDoc + SugarCRM Integration (Option B - Full Requirements)
+
+You are a senior backend engineer building a REST-based middleware integration between SugarCRM and PandaDoc. This integration is external to PandaDoc's core product, designed for a specific client but potentially reusable for others. It will be hosted separately (e.g., on Heroku, Render, or AWS) and triggered by a custom button inside SugarCRM.
+
+## User Experience Requirements
+- A SugarCRM user opens an Opportunity record and clicks a custom button labeled “Send to PandaDoc.”
+- This button makes a POST request to your middleware with the record ID.
+- The middleware pulls the record data, generates merge field tokens, and creates a PandaDoc document using a static template.
+- The resulting document link is returned and can be opened in a new tab or displayed in SugarCRM.
+- When the document is signed, viewed, or updated, PandaDoc sends a webhook to the middleware, which performs configurable workflow actions (e.g., update SugarCRM status, save document).
+
+## Project Goals
+Build a REST-based middleware API that:
+1. Accepts POST requests from SugarCRM with a record ID.
+2. Retrieves all data from the SugarCRM record and generates a list of PandaDoc merge field tokens based on available fields.
+3. Creates a PandaDoc document using a pre-selected template and populates tokens with SugarCRM field values.
+4. Returns the document ID and public link back to the client.
+5. Exposes a list of usable token variables to users, such as {{contact_email}}, {{opportunity_amount}}, etc.
+6. Listens for document lifecycle events from PandaDoc (e.g., signed, viewed) using the correct webhook endpoint according to official PandaDoc documentation.
+7. Supports workflow automation triggered by webhook events, configured via JSON or point-and-click UI.
+
+## Authentication & Security
+- Use API Key or OAuth2 where supported. Store credentials securely using environment variables.
+- Secure PandaDoc webhook requests using their recommended header signature (e.g., X-PD-Signature).
+- Use token-based tenant isolation and access control.
+
+## Field Mapping and Multi-Tenant Management
+- Middleware must support multiple SugarCRM–PandaDoc account configurations.
+- Each tenant has their own stored credentials and custom field mappings.
+- Field mappings are used both when generating PandaDoc documents and when processing returned webhook events.
+- Expose APIs to:
+  - Retrieve and modify field mappings
+  - Generate token list based on mapped or full SugarCRM fields
+
+## Workflow Engine
+- Support IF/THEN/ELSE logic for handling webhook events from PandaDoc.
+- Users must be able to configure workflows using:
+  - A point-and-click interface (future)
+  - A JSON-based configuration model (available at launch)
+- Allow multiple workflows per tenant.
+- Allow multiple actions per workflow (e.g., update status, save document, log change, notify user).
+- Examples:
+  - IF `event = document.signed`, THEN `update opportunity.status = Closed Signed`, AND `attach PDF to SugarCRM`
+  - IF `event = document.viewed`, THEN `update status = Viewed`
+
+## Merge Field Token Generation
+- When a user clicks “Generate Document,” the middleware should:
+  - Pull all fields from the given SugarCRM record
+  - Format each field as a PandaDoc variable token (e.g., {{contact_email}}, {{deal_name}})
+  - Insert those into the document using PandaDoc’s template variable system
+- The middleware must expose an API endpoint to list all available tokens for the current tenant and record module (e.g., Opportunity).
+- Token generation should reflect either:
+  - All available fields from the SugarCRM record
+  - Or filtered fields based on the tenant’s field mapping (if configured)
+
+## Tech Stack
+- Node.js (Express) or Python (FastAPI)
+- JSON REST APIs
+- Supabase or cloud-hosted database for tenant config and mapping storage
+- Deployment targets: Heroku, Render, AWS Lambda
+- Required files: .env, package.json (or requirements.txt)
+
+## Required Endpoints
+1. POST /create-doc
+   - Input: SugarCRM record ID
+   - Output: Document ID and public link
+
+2. POST /webhook/pandadoc
+   - Input: PandaDoc webhook event
+   - Output: 200 OK
+   - Action: Match webhook to workflow configuration and apply relevant actions
+
+3. GET /tokens
+   - Input: SugarCRM record type or record ID
+   - Output: List of variable tokens usable in PandaDoc templates
+
+4. GET/PUT /field-mappings
+   - Retrieve or update tenant-specific field mappings
+
+5. GET/PUT /workflow-config
+   - Retrieve or update tenant-specific workflow logic (JSON or rules-based)
+
+## Deliverables
+- Modular codebase with routing, services, and utils
+- Token management and merge field generator
+- Workflow engine with pluggable conditions and actions
+- Sample .env and credential placeholders
+- Postman collection for testing all routes
+- Readme with one-click Replit or Heroku deploy instructions
