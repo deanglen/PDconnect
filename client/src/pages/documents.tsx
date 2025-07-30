@@ -486,11 +486,177 @@ export default function DocumentTemplatesPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Configuration</Label>
-              <p className="text-sm text-muted-foreground">
-                Recipients, token mappings, and field mappings can be configured after creating the template.
-              </p>
+            {/* Default Recipients Configuration */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Default Recipients</Label>
+                <p className="text-sm text-muted-foreground">
+                  Configure default recipients for documents created from this template.
+                </p>
+                <div className="space-y-2">
+                  {(formData.defaultRecipients as any[])?.map((recipient: any, index: number) => (
+                    <div key={index} className="flex items-center space-x-2 p-3 border rounded">
+                      <Input
+                        placeholder="Email address"
+                        value={recipient.email || ""}
+                        onChange={(e) => {
+                          const newRecipients = [...(formData.defaultRecipients as any[] || [])];
+                          newRecipients[index] = { ...recipient, email: e.target.value };
+                          setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
+                        }}
+                        className="flex-1"
+                      />
+                      <Input
+                        placeholder="Role (e.g., signer)"
+                        value={recipient.role || "signer"}
+                        onChange={(e) => {
+                          const newRecipients = [...(formData.defaultRecipients as any[] || [])];
+                          newRecipients[index] = { ...recipient, role: e.target.value };
+                          setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
+                        }}
+                        className="w-32"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const newRecipients = (formData.defaultRecipients as any[] || []).filter((_, i) => i !== index);
+                          setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newRecipients = [...(formData.defaultRecipients as any[] || []), { email: "", role: "signer" }];
+                      setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Recipient
+                  </Button>
+                </div>
+              </div>
+
+              {/* Token Mappings Configuration */}
+              <div className="space-y-2">
+                <Label>Token Mappings</Label>
+                <p className="text-sm text-muted-foreground">
+                  Map SugarCRM fields to PandaDoc tokens for automatic population.
+                </p>
+                <div className="space-y-2">
+                  {(formData.tokenMappings as any[])?.map((mapping: any, index: number) => (
+                    <div key={index} className="flex items-center space-x-2 p-3 border rounded">
+                      <Input
+                        placeholder="SugarCRM Field (e.g., name)"
+                        value={mapping.sugarField || ""}
+                        onChange={(e) => {
+                          const newMappings = [...(formData.tokenMappings as any[] || [])];
+                          newMappings[index] = { ...mapping, sugarField: e.target.value };
+                          setFormData(prev => ({ ...prev, tokenMappings: newMappings }));
+                        }}
+                        className="flex-1"
+                      />
+                      <Input
+                        placeholder="PandaDoc Token (e.g., {{contact_name}})"
+                        value={mapping.pandaDocToken || ""}
+                        onChange={(e) => {
+                          const newMappings = [...(formData.tokenMappings as any[] || [])];
+                          newMappings[index] = { ...mapping, pandaDocToken: e.target.value };
+                          setFormData(prev => ({ ...prev, tokenMappings: newMappings }));
+                        }}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const newMappings = (formData.tokenMappings as any[] || []).filter((_, i) => i !== index);
+                          setFormData(prev => ({ ...prev, tokenMappings: newMappings }));
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newMappings = [...(formData.tokenMappings as any[] || []), { sugarField: "", pandaDocToken: "" }];
+                      setFormData(prev => ({ ...prev, tokenMappings: newMappings }));
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Token Mapping
+                  </Button>
+                </div>
+              </div>
+
+              {/* Field Mappings Configuration */}
+              <div className="space-y-2">
+                <Label>Field Mappings</Label>
+                <p className="text-sm text-muted-foreground">
+                  Configure additional field mappings for document creation.
+                </p>
+                <div className="space-y-2">
+                  {(formData.fieldMappings as any[])?.map((mapping: any, index: number) => (
+                    <div key={index} className="flex items-center space-x-2 p-3 border rounded">
+                      <Input
+                        placeholder="Source Field"
+                        value={mapping.sourceField || ""}
+                        onChange={(e) => {
+                          const newMappings = [...(formData.fieldMappings as any[] || [])];
+                          newMappings[index] = { ...mapping, sourceField: e.target.value };
+                          setFormData(prev => ({ ...prev, fieldMappings: newMappings }));
+                        }}
+                        className="flex-1"
+                      />
+                      <Input
+                        placeholder="Target Field"
+                        value={mapping.targetField || ""}
+                        onChange={(e) => {
+                          const newMappings = [...(formData.fieldMappings as any[] || [])];
+                          newMappings[index] = { ...mapping, targetField: e.target.value };
+                          setFormData(prev => ({ ...prev, fieldMappings: newMappings }));
+                        }}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const newMappings = (formData.fieldMappings as any[] || []).filter((_, i) => i !== index);
+                          setFormData(prev => ({ ...prev, fieldMappings: newMappings }));
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newMappings = [...(formData.fieldMappings as any[] || []), { sourceField: "", targetField: "" }];
+                      setFormData(prev => ({ ...prev, fieldMappings: newMappings }));
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Field Mapping
+                  </Button>
+                </div>
+              </div>
             </div>
 
             <div className="flex items-center justify-between">
