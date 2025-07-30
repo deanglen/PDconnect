@@ -139,7 +139,26 @@ The application is designed to be deployed as a single service that handles both
 - **Production Ready**: Proper rate limiting awareness and error recovery patterns
 
 ### Security Enhancements
-- **Webhook Signature Verification**: Implemented PandaDoc's HMAC-SHA256 verification
+- **Webhook Signature Verification**: Implemented PandaDoc's HMAC-SHA256 verification with tenant-specific secrets
 - **Timing Attack Prevention**: Using crypto.timingSafeEqual for signature comparison
+- **Tenant-Specific Webhook Secrets**: Each tenant can configure their own webhook shared secret for enhanced security
 - **Environment Variable Security**: Proper handling of webhook secrets and API keys
 - **Tenant Isolation**: Enhanced tenant identification from webhook payloads
+
+## Recent Updates - Webhook Shared Secret Storage (January 2025)
+
+### Database Schema Enhancement
+- **Added webhookSharedSecret field** to tenants table for storing PandaDoc webhook shared secrets
+- **Optional Configuration**: Tenants can optionally configure webhook secrets for enhanced security
+- **Secure Storage**: Webhook secrets are stored securely in the database per tenant
+
+### Enhanced Webhook Processing
+- **Tenant-Specific Verification**: Webhook signatures are now verified using tenant-specific shared secrets
+- **Graceful Fallback**: System handles tenants without webhook secrets configured
+- **Improved Security Logging**: Enhanced logging for webhook signature verification success/failure
+
+### User Interface Improvements
+- **Webhook Secret Management**: Added webhook shared secret configuration to tenant creation and editing forms
+- **Visual Indicators**: Tenant cards now show whether webhook secrets are configured
+- **Security Best Practices**: Forms include helpful text explaining webhook secret usage
+- **Edit Functionality**: Complete tenant editing interface with webhook secret management

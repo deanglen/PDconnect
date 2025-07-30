@@ -23,6 +23,8 @@ const formSchema = insertTenantSchema.extend({
 export default function Tenants() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingTenant, setEditingTenant] = useState<any>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const { data: tenants = [], isLoading } = useQuery({
@@ -44,6 +46,26 @@ export default function Tenants() {
       toast({
         title: "Error",
         description: error.message || "Failed to create tenant",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => api.updateTenant(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tenants'] });
+      setIsEditDialogOpen(false);
+      setEditingTenant(null);
+      toast({
+        title: "Success",
+        description: "Tenant updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update tenant",
         variant: "destructive",
       });
     },
@@ -75,6 +97,7 @@ export default function Tenants() {
       sugarCrmUsername: "",
       sugarCrmPassword: "",
       pandaDocApiKey: "",
+      webhookSharedSecret: "",
       pandaDocSandbox: false,
       isActive: true,
     },
@@ -83,6 +106,41 @@ export default function Tenants() {
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     const { confirmPassword, ...submitData } = values;
     createMutation.mutate(submitData);
+  };
+
+  const editForm = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: "",
+      sugarCrmUrl: "",
+      sugarCrmUsername: "",
+      sugarCrmPassword: "",
+      pandaDocApiKey: "",
+      webhookSharedSecret: "",
+      pandaDocSandbox: false,
+      isActive: true,
+    },
+  });
+
+  const onEditSubmit = (values: z.infer<typeof formSchema>) => {
+    if (!editingTenant) return;
+    const { confirmPassword, ...submitData } = values;
+    updateMutation.mutate({ id: editingTenant.id, data: submitData });
+  };
+
+  const openEditDialog = (tenant: any) => {
+    setEditingTenant(tenant);
+    editForm.reset({
+      name: tenant.name,
+      sugarCrmUrl: tenant.sugarCrmUrl,
+      sugarCrmUsername: tenant.sugarCrmUsername || "",
+      sugarCrmPassword: "", // Don't prefill password for security
+      pandaDocApiKey: "", // Don't prefill API key for security
+      webhookSharedSecret: "", // Don't prefill secret for security
+      pandaDocSandbox: tenant.pandaDocSandbox,
+      isActive: tenant.isActive,
+    });
+    setIsEditDialogOpen(true);
   };
 
   const filteredTenants = tenants.filter((tenant: any) =>
@@ -200,6 +258,26 @@ export default function Tenants() {
                           <Input {...field} type="password" placeholder="API Key from PandaDoc" />
                         </FormControl>
                         <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="webhookSharedSecret"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Webhook Shared Secret
+                          <span className="text-sm text-gray-500 ml-2">(Optional - for webhook signature verification)</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} type="password" placeholder="Enter webhook shared secret from PandaDoc" />
+                        </FormControl>
+                        <FormMessage />
+                        <p className="text-xs text-gray-500 mt-1">
+                          This secret is used to verify webhook signatures from PandaDoc for enhanced security.
+                        </p>
                       </FormItem>
                     )}
                   />
@@ -369,13 +447,26 @@ export default function Tenants() {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                             <div className="flex items-center gap-2">
                               <i className="fas fa-key text-gray-400"></i>
                               <span className="text-gray-600">API Key: </span>
                               <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
                                 {tenant.pandaDocApiKey.substring(0, 8)}...
                               </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <i className="fas fa-shield-alt text-gray-400"></i>
+                              <span className="text-gray-600">Webhook Secret: </span>
+                              {tenant.webhookSharedSecret ? (
+                                <span className="font-mono text-xs bg-green-100 px-2 py-1 rounded text-green-800">
+                                  Configured
+                                </span>
+                              ) : (
+                                <span className="font-mono text-xs bg-yellow-100 px-2 py-1 rounded text-yellow-800">
+                                  Not Set
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-2">
                               <i className="fas fa-calendar text-gray-400"></i>
@@ -395,6 +486,7 @@ export default function Tenants() {
                             variant="outline" 
                             size="sm"
                             className="text-blue-600 hover:text-blue-700"
+                            onClick={() => openEditDialog(tenant)}
                           >
                             <i className="fas fa-edit mr-1"></i>
                             Edit
@@ -421,6 +513,148 @@ export default function Tenants() {
             )}
           </CardContent>
         </Card>
+
+        {/* Edit Tenant Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Edit Tenant Configuration</DialogTitle>
+            </DialogHeader>
+            
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tenant Name</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Acme Corporation" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="sugarCrmUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>SugarCRM URL</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="https://acme.sugarcrm.com" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="sugarCrmUsername"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>SugarCRM Username</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} placeholder="admin" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={editForm.control}
+                    name="sugarCrmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>SugarCRM Password</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} type="password" placeholder="Leave blank to keep existing" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={editForm.control}
+                  name="pandaDocApiKey"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>PandaDoc API Key</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="password" placeholder="Leave blank to keep existing" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="webhookSharedSecret"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Webhook Shared Secret
+                        <span className="text-sm text-gray-500 ml-2">(Optional - for webhook signature verification)</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input {...field} value={field.value || ""} type="password" placeholder="Leave blank to keep existing (or not set)" />
+                      </FormControl>
+                      <FormMessage />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Configure this secret in your PandaDoc webhook settings to enable signature verification.
+                      </p>
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex items-center space-x-4">
+                  <FormField
+                    control={editForm.control}
+                    name="pandaDocSandbox"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center space-x-2">
+                        <FormControl>
+                          <Switch checked={field.value || false} onCheckedChange={field.onChange} />
+                        </FormControl>
+                        <FormLabel>Use PandaDoc Sandbox</FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={editForm.control}
+                    name="isActive"
+                    render={({ field }) => (
+                      <FormItem className="flex items-center space-x-2">
+                        <FormControl>
+                          <Switch checked={field.value || false} onCheckedChange={field.onChange} />
+                        </FormControl>
+                        <FormLabel>Active</FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={updateMutation.isPending}>
+                    {updateMutation.isPending ? "Updating..." : "Update Tenant"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
