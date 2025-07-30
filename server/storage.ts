@@ -1,8 +1,9 @@
 import { 
-  users, tenants, fieldMappings, workflows, webhookLogs, documents,
+  users, tenants, fieldMappings, workflows, webhookLogs, documents, documentTemplates,
   type User, type InsertUser, type Tenant, type InsertTenant,
   type FieldMapping, type InsertFieldMapping, type Workflow, type InsertWorkflow,
-  type WebhookLog, type InsertWebhookLog, type Document, type InsertDocument
+  type WebhookLog, type InsertWebhookLog, type Document, type InsertDocument,
+  type DocumentTemplate, type InsertDocumentTemplate
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
@@ -44,6 +45,13 @@ export interface IStorage {
   getDocument(pandaDocId: string): Promise<Document | undefined>;
   createDocument(document: InsertDocument): Promise<Document>;
   updateDocument(id: string, document: Partial<InsertDocument>): Promise<Document>;
+
+  // Document template methods
+  getDocumentTemplates(tenantId: string, module?: string): Promise<DocumentTemplate[]>;
+  getDocumentTemplate(id: string): Promise<DocumentTemplate | undefined>;
+  createDocumentTemplate(template: InsertDocumentTemplate): Promise<DocumentTemplate>;
+  updateDocumentTemplate(id: string, template: Partial<InsertDocumentTemplate>): Promise<DocumentTemplate>;
+  deleteDocumentTemplate(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -198,6 +206,40 @@ export class DatabaseStorage implements IStorage {
       .where(eq(documents.id, id))
       .returning();
     return updatedDocument;
+  }
+
+  // Document template methods
+  async getDocumentTemplates(tenantId: string, module?: string): Promise<DocumentTemplate[]> {
+    let query = db.select().from(documentTemplates).where(eq(documentTemplates.tenantId, tenantId));
+    
+    if (module) {
+      query = query.where(and(eq(documentTemplates.tenantId, tenantId), eq(documentTemplates.sugarModule, module)));
+    }
+    
+    return await query.orderBy(desc(documentTemplates.createdAt));
+  }
+
+  async getDocumentTemplate(id: string): Promise<DocumentTemplate | undefined> {
+    const [template] = await db.select().from(documentTemplates).where(eq(documentTemplates.id, id));
+    return template || undefined;
+  }
+
+  async createDocumentTemplate(template: InsertDocumentTemplate): Promise<DocumentTemplate> {
+    const [newTemplate] = await db.insert(documentTemplates).values(template).returning();
+    return newTemplate;
+  }
+
+  async updateDocumentTemplate(id: string, template: Partial<InsertDocumentTemplate>): Promise<DocumentTemplate> {
+    const [updated] = await db
+      .update(documentTemplates)
+      .set({ ...template, updatedAt: new Date() })
+      .where(eq(documentTemplates.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteDocumentTemplate(id: string): Promise<void> {
+    await db.delete(documentTemplates).where(eq(documentTemplates.id, id));
   }
 }
 

@@ -5,7 +5,7 @@ import { SugarCRMService } from "./services/sugarcrm";
 import { PandaDocService, type SugarCRMDocumentRequest } from "./services/pandadoc";
 import { WorkflowEngine } from "./services/workflow";
 import { WebhookVerifier } from "./utils/webhook-verifier";
-import { insertTenantSchema, insertFieldMappingSchema, insertWorkflowSchema, insertDocumentSchema } from "@shared/schema";
+import { insertTenantSchema, insertFieldMappingSchema, insertWorkflowSchema, insertDocumentSchema, insertDocumentTemplateSchema } from "@shared/schema";
 import { z } from "zod";
 import { logger } from "./utils/logger";
 import { retryQueue, initializeRetryQueue } from "./utils/retry-queue";
@@ -692,6 +692,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(documents);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch documents" });
+    }
+  });
+
+  // Document Template Management Routes
+
+  // Get all document templates for a tenant
+  app.get("/api/document-templates", async (req: Request, res: Response) => {
+    try {
+      const { tenantId, module } = req.query;
+      
+      if (!tenantId) {
+        return res.status(400).json({ message: "Tenant ID is required" });
+      }
+
+      const templates = await storage.getDocumentTemplates(tenantId as string, module as string);
+      res.json(templates);
+    } catch (error: any) {
+      const requestId = (req as any).requestId;
+      logger.error('Failed to fetch document templates', { requestId }, error);
+      res.status(500).json({ message: "Failed to fetch document templates", error: error.message });
+    }
+  });
+
+  // Get specific document template
+  app.get("/api/document-templates/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const template = await storage.getDocumentTemplate(id);
+      
+      if (!template) {
+        return res.status(404).json({ message: "Document template not found" });
+      }
+      
+      res.json(template);
+    } catch (error: any) {
+      const requestId = (req as any).requestId;
+      logger.error('Failed to fetch document template', { requestId }, error);
+      res.status(500).json({ message: "Failed to fetch document template", error: error.message });
+    }
+  });
+
+  // Create document template
+  app.post("/api/document-templates", async (req: Request, res: Response) => {
+    try {
+      const validatedTemplate = insertDocumentTemplateSchema.parse(req.body);
+      const newTemplate = await storage.createDocumentTemplate(validatedTemplate);
+      
+      const requestId = (req as any).requestId;
+      logger.info('Document template created', { requestId }, {
+        templateId: newTemplate.id,
+        tenantId: newTemplate.tenantId,
+        name: newTemplate.name
+      });
+      
+      res.status(201).json(newTemplate);
+    } catch (error: any) {
+      const requestId = (req as any).requestId;
+      
+      if (error instanceof z.ZodError) {
+        logger.error('Document template validation failed', { requestId }, error);
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+
+      logger.error('Failed to create document template', { requestId }, error);
+      res.status(500).json({ message: "Failed to create document template", error: error.message });
+    }
+  });
+
+  // Update document template
+  app.put("/api/document-templates/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertDocumentTemplateSchema.partial().parse(req.body);
+      
+      const updatedTemplate = await storage.updateDocumentTemplate(id, validatedData);
+      
+      const requestId = (req as any).requestId;
+      logger.info('Document template updated', { requestId }, {
+        templateId: updatedTemplate.id,
+        tenantId: updatedTemplate.tenantId
+      });
+      
+      res.json(updatedTemplate);
+    } catch (error: any) {
+      const requestId = (req as any).requestId;
+      
+      if (error instanceof z.ZodError) {
+        logger.error('Document template update validation failed', { requestId }, error);
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+
+      logger.error('Failed to update document template', { requestId }, error);
+      res.status(500).json({ message: "Failed to update document template", error: error.message });
+    }
+  });
+
+  // Delete document template
+  app.delete("/api/document-templates/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteDocumentTemplate(id);
+      
+      const requestId = (req as any).requestId;
+      logger.info('Document template deleted', { requestId }, { templateId: id });
+      
+      res.status(204).send();
+    } catch (error: any) {
+      const requestId = (req as any).requestId;
+      logger.error('Failed to delete document template', { requestId }, error);
+      res.status(500).json({ message: "Failed to delete document template", error: error.message });
     }
   });
 
