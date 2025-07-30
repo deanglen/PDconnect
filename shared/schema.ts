@@ -43,9 +43,15 @@ export const workflows = pgTable("workflows", {
   name: text("name").notNull(),
   description: text("description"),
   triggerEvent: text("trigger_event").notNull(), // e.g., "document.signed"
-  conditions: jsonb("conditions").default([]),
-  actions: jsonb("actions").notNull(),
+  // Enhanced workflow logic with IF/THEN/ELSE support
+  conditions: jsonb("conditions").default([]), // Array of condition groups
+  ifThenElseRules: jsonb("if_then_else_rules").default({}), // Complex conditional logic
+  actions: jsonb("actions").notNull(), // Multiple actions per workflow
+  elseActions: jsonb("else_actions").default([]), // Actions for ELSE case
+  priority: integer("priority").default(100), // Execution priority
+  timeout: integer("timeout").default(30), // Timeout in seconds
   isActive: boolean("is_active").default(true),
+  configMode: text("config_mode").default("point_click"), // "point_click" or "json"
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
