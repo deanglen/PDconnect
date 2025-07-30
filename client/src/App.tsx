@@ -10,6 +10,7 @@ import Mappings from "@/pages/mappings";
 import Workflows from "@/pages/workflows";
 import Tokens from "@/pages/tokens";
 import Webhooks from "@/pages/webhooks";
+import Security from "@/pages/security";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/workflows" component={Workflows} />
       <Route path="/tokens" component={Tokens} />
       <Route path="/webhooks" component={Webhooks} />
+      <Route path="/security" component={Security} />
       <Route component={NotFound} />
     </Switch>
   );

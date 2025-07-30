@@ -11,6 +11,7 @@ const navigation = [
   { name: 'Workflows', href: '/workflows', icon: 'fas fa-project-diagram' },
   { name: 'Token Explorer', href: '/tokens', icon: 'fas fa-tags' },
   { name: 'Webhook Logs', href: '/webhooks', icon: 'fas fa-exchange-alt' },
+  { name: 'Security', href: '/security', icon: 'fas fa-shield-alt' },
 ];
 
 export function Sidebar({ className = "" }: SidebarProps) {

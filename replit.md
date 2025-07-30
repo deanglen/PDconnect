@@ -44,10 +44,12 @@ The application supports multiple tenant configurations, where each tenant has:
 - **Documents**: Tracking of created PandaDoc documents
 
 ### Service Layer
-- **SugarCRMService**: Handles authentication and data retrieval from SugarCRM
+- **SugarCRMService**: Handles authentication and data retrieval from SugarCRM with certificate-based auth support
 - **PandaDocService**: Manages document creation and API interactions with PandaDoc
 - **WorkflowEngine**: Processes webhook events and executes configured actions
 - **WebhookVerifier**: Validates incoming webhook signatures for security
+- **CertificateBasedAuth**: Manages X.509 certificate authentication and secure HTTPS connections
+- **XMLSignatureVerifier**: Handles XML digital signature verification and document signing
 
 ### Frontend Pages
 - **Dashboard**: Performance metrics and system overview
@@ -56,6 +58,7 @@ The application supports multiple tenant configurations, where each tenant has:
 - **Workflows**: Design automation rules for document lifecycle events
 - **Tokens**: Explore available merge field tokens and preview values
 - **Webhooks**: Monitor webhook logs and processing status
+- **Security**: Certificate authentication status, XML signature testing, and security configuration guide
 
 ## Data Flow
 
@@ -138,8 +141,18 @@ The application is designed to be deployed as a single service that handles both
 - **Better Error Handling**: Detailed error messages and validation for document creation
 - **Production Ready**: Proper rate limiting awareness and error recovery patterns
 
-### Security Enhancements
-- **Webhook Signature Verification**: Implemented PandaDoc's HMAC-SHA256 verification
-- **Timing Attack Prevention**: Using crypto.timingSafeEqual for signature comparison
-- **Environment Variable Security**: Proper handling of webhook secrets and API keys
-- **Tenant Isolation**: Enhanced tenant identification from webhook payloads
+### Enterprise Security Features (January 2025)
+- **XML Signature Verification**: Complete XML digital signature verification for SugarCRM data integrity
+- **Certificate-Based Authentication**: mTLS client certificate authentication for enhanced security
+- **Multi-Tenant Certificate Management**: Per-tenant certificate configuration with fallback defaults
+- **Certificate Chain Validation**: Full X.509 certificate chain validation with CA verification
+- **Signed Document Creation**: Ability to create XML-signed documents for secure data transmission
+- **Security Dashboard**: New Security page for certificate status monitoring and XML signature testing
+- **Environment-Based Configuration**: Tenant-specific certificate configuration via environment variables
+
+### Security Architecture
+- **XMLSignatureVerifier Class**: Handles XML signature verification with forge cryptography
+- **CertificateBasedAuth Service**: Manages certificate authentication and HTTPS agent configuration
+- **Certificate Validation**: Time validity, chain verification, and CA trust validation
+- **Secure HTTP Clients**: Automatic configuration of HTTPS agents with client certificates
+- **Security API Endpoints**: RESTful endpoints for XML verification and document signing

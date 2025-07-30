@@ -77,12 +77,30 @@ export const documents = pgTable("documents", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const certificateConfigs = pgTable("certificate_configs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // e.g., "Production SSL Certificate"
+  certificateType: text("certificate_type").notNull(), // "client", "server", "ca"
+  certificatePem: text("certificate_pem"), // PEM encoded certificate
+  issuer: text("issuer"),
+  subject: text("subject"),
+  serialNumber: text("serial_number"),
+  fingerprint: text("fingerprint"),
+  validFrom: timestamp("valid_from"),
+  validTo: timestamp("valid_to"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const tenantsRelations = relations(tenants, ({ many }) => ({
   fieldMappings: many(fieldMappings),
   workflows: many(workflows),
   webhookLogs: many(webhookLogs),
   documents: many(documents),
+  certificateConfigs: many(certificateConfigs),
 }));
 
 export const fieldMappingsRelations = relations(fieldMappings, ({ one }) => ({
@@ -109,6 +127,13 @@ export const webhookLogsRelations = relations(webhookLogs, ({ one }) => ({
 export const documentsRelations = relations(documents, ({ one }) => ({
   tenant: one(tenants, {
     fields: [documents.tenantId],
+    references: [tenants.id],
+  }),
+}));
+
+export const certificateConfigsRelations = relations(certificateConfigs, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [certificateConfigs.tenantId],
     references: [tenants.id],
   }),
 }));
@@ -147,6 +172,12 @@ export const insertDocumentSchema = createInsertSchema(documents).omit({
   updatedAt: true,
 });
 
+export const insertCertificateConfigSchema = createInsertSchema(certificateConfigs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -160,3 +191,5 @@ export type InsertWebhookLog = z.infer<typeof insertWebhookLogSchema>;
 export type WebhookLog = typeof webhookLogs.$inferSelect;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Document = typeof documents.$inferSelect;
+export type InsertCertificateConfig = z.infer<typeof insertCertificateConfigSchema>;
+export type CertificateConfig = typeof certificateConfigs.$inferSelect;

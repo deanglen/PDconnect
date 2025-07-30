@@ -51,6 +51,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Security info endpoint for certificate authentication status
+  app.get("/api/security/info", async (req: Request, res: Response) => {
+    try {
+      const tenants = await storage.getTenants();
+      const securityInfo = [];
+
+      for (const tenant of tenants) {
+        const sugarService = new SugarCRMService(tenant);
+        const certInfo = sugarService.getCertificateInfo();
+        
+        securityInfo.push({
+          tenantId: tenant.id,
+          tenantName: tenant.name,
+          certificateEnabled: !!certInfo,
+          certificateInfo: certInfo,
+          xmlSignatureSupported: !!certInfo
+        });
+      }
+
+      res.json(securityInfo);
+    } catch (error: any) {
+      res.status(500).json({ message: `Failed to fetch security info: ${error.message}` });
+    }
+  });
+
+  // XML signature verification endpoint
+  app.post("/api/security/verify-xml", async (req: Request, res: Response) => {
+    try {
+      const { tenantId, xmlData } = req.body;
+
+      if (!tenantId || !xmlData) {
+        return res.status(400).json({ message: "Tenant ID and XML data required" });
+      }
+
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      const sugarService = new SugarCRMService(tenant);
+      const verificationResult = await sugarService.verifyXMLSignature(xmlData);
+
+      res.json(verificationResult);
+    } catch (error: any) {
+      res.status(500).json({ message: `XML verification failed: ${error.message}` });
+    }
+  });
+
+  // Create signed document endpoint
+  app.post("/api/security/create-signed", async (req: Request, res: Response) => {
+    try {
+      const { tenantId, data } = req.body;
+
+      if (!tenantId || !data) {
+        return res.status(400).json({ message: "Tenant ID and data required" });
+      }
+
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      const sugarService = new SugarCRMService(tenant);
+      const signedDocument = await sugarService.createSignedDocument(data);
+
+      res.json({ signedDocument });
+    } catch (error: any) {
+      res.status(500).json({ message: `Document signing failed: ${error.message}` });
+    }
+  });
+
   // Create document endpoint
   app.post("/api/create-doc", async (req: Request, res: Response) => {
     try {
