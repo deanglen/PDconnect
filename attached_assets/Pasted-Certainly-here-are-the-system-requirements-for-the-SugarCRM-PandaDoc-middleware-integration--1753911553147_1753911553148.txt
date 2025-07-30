@@ -1,0 +1,126 @@
+Certainly — here are the **system requirements** for the SugarCRM → PandaDoc middleware integration described:
+
+---
+
+# System Requirements
+
+**Use Case**: Enable SugarCRM users to generate PandaDoc documents from within a CRM record, with field mapping, token support, and webhook-driven workflows.
+
+---
+
+## 1. **Core Functional Requirements**
+
+### A. Document Generation
+
+* A button in SugarCRM triggers a `POST` request to the middleware with:
+
+  * SugarCRM record ID
+  * (Optional) record module (e.g., `opportunities`)
+  * Tenant identifier (for multi-tenant support)
+* Middleware pulls full record details from SugarCRM via REST API
+* Middleware applies pre-configured field mappings
+* Middleware creates a PandaDoc document from a static template using the mapped tokens
+* Middleware returns the document link and/or ID
+
+### B. Token & Field Mapping Support
+
+* System must support:
+
+  * Field mapping between SugarCRM fields and PandaDoc tokens
+  * Storage and retrieval of mapping configurations per tenant
+  * Real-time generation of PandaDoc-compatible merge field tokens based on SugarCRM schema
+
+### C. Webhook Workflow Handling
+
+* Middleware must listen to PandaDoc webhook events (e.g., document viewed, signed)
+* Webhooks must be verified using a shared secret (HMAC)
+* Configurable logic to define workflows per tenant (e.g., if “signed,” then update SugarCRM field)
+* Workflows must support:
+
+  * IF/THEN/ELSE logic
+  * Multiple actions per event
+  * JSON-based config and optional visual UI
+
+---
+
+## 2. **System Architecture Requirements**
+
+### A. Middleware Application
+
+* REST-based middleware hosted on cloud platform (Heroku, AWS, Render, or similar)
+* Built using Node.js (Express), Python (Flask/FastAPI), or similar backend framework
+* Modular architecture separating:
+
+  * Routes (API endpoints)
+  * Services (CRM and PandaDoc logic)
+  * Utilities (mapping, auth, transformation)
+  * Config and tenant store
+
+### B. API Integrations
+
+* SugarCRM
+
+  * REST API access
+  * OAuth2 authentication or long-lived token storage
+* PandaDoc
+
+  * REST API v2 access
+  * API Key stored in environment variables or secret store
+  * Webhook support with secure HMAC validation
+
+---
+
+## 3. **Tenant Management Requirements**
+
+* Ability to store and manage configuration per tenant/client:
+
+  * API credentials (encrypted)
+  * Field mappings
+  * Workflow rules
+  * Template IDs
+  * Webhook secrets
+* Multi-tenant safe: isolated configs and credentials
+
+---
+
+## 4. **Security Requirements**
+
+* All secrets stored securely in environment variables or secret manager
+* HTTPS required for all endpoints
+* HMAC verification of all PandaDoc webhook payloads
+* Access control if UI or admin panel is provided (e.g., API keys or login)
+
+---
+
+## 5. **Operational & Logging Requirements**
+
+* Logging of all inbound and outbound API requests (with redacted sensitive data)
+* Logging of webhook events
+* Error handling and retries for transient API failures
+* Health check endpoint (e.g., `/health`) for uptime monitoring
+* Retry queue for failed webhook events (optional)
+
+---
+
+## 6. **Optional Admin UI Requirements**
+
+* Allow non-technical users to:
+
+  * Define field mappings via dropdown or field selector
+  * Configure workflows (drag and drop or form-based IF/THEN)
+  * View logs of past document creation attempts or webhook events
+
+---
+
+## 7. **Deployment & Hosting Requirements**
+
+* Must be deployable to Heroku, AWS Lambda (via serverless), Render, or GCP Cloud Run
+* CI/CD pipeline must support:
+
+  * Linting
+  * Testing
+  * Environment variable management
+
+---
+
+Would you like this converted into a more formal PRD (Product Requirements Document) format or split into MVP vs. Phase 2 requirements?
