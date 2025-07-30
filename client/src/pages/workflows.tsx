@@ -106,11 +106,14 @@ function WorkflowEditor({
   ];
 
   const actionTypes = [
-    { value: 'update_sugarcrm', label: 'Update SugarCRM Field', description: 'Update a specific field in a SugarCRM record' },
-    { value: 'create_note', label: 'Create Note/Activity', description: 'Create a new note or activity in SugarCRM' },
-    { value: 'attach_document', label: 'Attach Document', description: 'Attach the PandaDoc document to a SugarCRM record' },
-    { value: 'send_notification', label: 'Send Email Notification', description: 'Send an email notification to specified recipients' },
-    { value: 'log_activity', label: 'Log Activity', description: 'Log an activity with details in SugarCRM' }
+    { value: 'update_record', label: 'Update SugarCRM Record', description: 'Update fields in an existing SugarCRM record using PUT /{module}/{id}' },
+    { value: 'create_note', label: 'Create Note', description: 'Create a new note record using POST /Notes' },
+    { value: 'create_task', label: 'Create Task', description: 'Create a new task record using POST /Tasks' },
+    { value: 'create_call', label: 'Create Call Activity', description: 'Create a call activity record using POST /Calls' },
+    { value: 'create_meeting', label: 'Create Meeting', description: 'Create a meeting record using POST /Meetings' },
+    { value: 'attach_file', label: 'Attach File to Record', description: 'Attach PandaDoc document using POST /{module}/{id}/file/{field}' },
+    { value: 'create_relationship', label: 'Create Record Relationship', description: 'Link records together using POST /{module}/{id}/link/{link_name}' },
+    { value: 'send_email', label: 'Send Email', description: 'Create and send email using POST /Emails' }
   ];
 
   const sugarModules = [
@@ -119,7 +122,12 @@ function WorkflowEditor({
     { value: 'Accounts', label: 'Accounts', description: 'Companies and organizations' },
     { value: 'Leads', label: 'Leads', description: 'Potential customers and prospects' },
     { value: 'Cases', label: 'Cases', description: 'Customer support cases' },
-    { value: 'Notes', label: 'Notes', description: 'Notes and attachments' }
+    { value: 'Notes', label: 'Notes', description: 'Notes and attachments' },
+    { value: 'Tasks', label: 'Tasks', description: 'Task and to-do items' },
+    { value: 'Calls', label: 'Calls', description: 'Call activities and phone logs' },
+    { value: 'Meetings', label: 'Meetings', description: 'Meeting activities and appointments' },
+    { value: 'Emails', label: 'Emails', description: 'Email communications' },
+    { value: 'Documents', label: 'Documents', description: 'Document storage and management' }
   ];
 
   const addCondition = () => {
@@ -408,7 +416,8 @@ function WorkflowEditor({
                     ))}
                   </SelectContent>
                 </Select>
-                {action.type === 'update_sugarcrm' && (
+                {/* Update Record Action */}
+                {action.type === 'update_record' && (
                   <>
                     <Select
                       value={action.module || ''}
@@ -426,14 +435,118 @@ function WorkflowEditor({
                       </SelectContent>
                     </Select>
                     <Input
-                      placeholder="Field name"
+                      placeholder="Field name (e.g., sales_stage)"
                       value={action.field || ''}
                       onChange={(e) => updateAction('then', index, 'field', e.target.value)}
                     />
                     <Input
-                      placeholder="New value"
+                      placeholder="New value (e.g., Closed Won)"
                       value={action.value || ''}
                       onChange={(e) => updateAction('then', index, 'value', e.target.value)}
+                    />
+                  </>
+                )}
+                
+                {/* Create Note Action */}
+                {(action.type === 'create_note' || action.type === 'create_task' || action.type === 'create_call' || action.type === 'create_meeting') && (
+                  <>
+                    <Input
+                      placeholder="Name/Subject"
+                      value={action.name || ''}
+                      onChange={(e) => updateAction('then', index, 'name', e.target.value)}
+                    />
+                    <Input
+                      placeholder="Description"
+                      value={action.description || ''}
+                      onChange={(e) => updateAction('then', index, 'description', e.target.value)}
+                    />
+                    <Input
+                      placeholder="Related Module (optional)"
+                      value={action.parent_type || ''}
+                      onChange={(e) => updateAction('then', index, 'parent_type', e.target.value)}
+                    />
+                  </>
+                )}
+                
+                {/* Attach File Action */}
+                {action.type === 'attach_file' && (
+                  <>
+                    <Select
+                      value={action.module || ''}
+                      onValueChange={(value) => updateAction('then', index, 'module', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Target Module" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sugarModules.map(module => (
+                          <SelectItem key={module.value} value={module.value}>
+                            {module.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      placeholder="Field name (e.g., filename)"
+                      value={action.field || ''}
+                      onChange={(e) => updateAction('then', index, 'field', e.target.value)}
+                    />
+                    <Input
+                      placeholder="File source (PandaDoc document)"
+                      value={action.source || 'pandadoc_document'}
+                      onChange={(e) => updateAction('then', index, 'source', e.target.value)}
+                    />
+                  </>
+                )}
+                
+                {/* Send Email Action */}
+                {action.type === 'send_email' && (
+                  <>
+                    <Input
+                      placeholder="To email address"
+                      value={action.to_email || ''}
+                      onChange={(e) => updateAction('then', index, 'to_email', e.target.value)}
+                    />
+                    <Input
+                      placeholder="Subject"
+                      value={action.subject || ''}
+                      onChange={(e) => updateAction('then', index, 'subject', e.target.value)}
+                    />
+                    <Input
+                      placeholder="Message body"
+                      value={action.body || ''}
+                      onChange={(e) => updateAction('then', index, 'body', e.target.value)}
+                    />
+                  </>
+                )}
+                
+                {/* Create Relationship Action */}
+                {action.type === 'create_relationship' && (
+                  <>
+                    <Select
+                      value={action.source_module || ''}
+                      onValueChange={(value) => updateAction('then', index, 'source_module', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Source Module" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sugarModules.map(module => (
+                          <SelectItem key={module.value} value={module.value}>
+                            {module.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      placeholder="Link name (e.g., accounts)"
+                      value={action.link_name || ''}
+                      onChange={(e) => updateAction('then', index, 'link_name', e.target.value)}
+                    />
+                    <Input
+                      placeholder="Target record ID"
+                      value={action.target_id || ''}
+                      onChange={(e) => updateAction('then', index, 'target_id', e.target.value)}
                     />
                   </>
                 )}
@@ -484,7 +597,8 @@ function WorkflowEditor({
                     ))}
                   </SelectContent>
                 </Select>
-                {action.type === 'update_sugarcrm' && (
+                {/* Update Record Action */}
+                {action.type === 'update_record' && (
                   <>
                     <Select
                       value={action.module || ''}
@@ -502,14 +616,86 @@ function WorkflowEditor({
                       </SelectContent>
                     </Select>
                     <Input
-                      placeholder="Field name"
+                      placeholder="Field name (e.g., sales_stage)"
                       value={action.field || ''}
                       onChange={(e) => updateAction('else', index, 'field', e.target.value)}
                     />
                     <Input
-                      placeholder="New value"
+                      placeholder="New value (e.g., Closed Lost)"
                       value={action.value || ''}
                       onChange={(e) => updateAction('else', index, 'value', e.target.value)}
+                    />
+                  </>
+                )}
+                
+                {/* Create Activity Actions */}
+                {(action.type === 'create_note' || action.type === 'create_task' || action.type === 'create_call' || action.type === 'create_meeting') && (
+                  <>
+                    <Input
+                      placeholder="Name/Subject"
+                      value={action.name || ''}
+                      onChange={(e) => updateAction('else', index, 'name', e.target.value)}
+                    />
+                    <Input
+                      placeholder="Description"
+                      value={action.description || ''}
+                      onChange={(e) => updateAction('else', index, 'description', e.target.value)}
+                    />
+                    <Input
+                      placeholder="Related Module (optional)"
+                      value={action.parent_type || ''}
+                      onChange={(e) => updateAction('else', index, 'parent_type', e.target.value)}
+                    />
+                  </>
+                )}
+                
+                {/* Other action types with similar patterns... */}
+                {action.type === 'attach_file' && (
+                  <>
+                    <Select
+                      value={action.module || ''}
+                      onValueChange={(value) => updateAction('else', index, 'module', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Target Module" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sugarModules.map(module => (
+                          <SelectItem key={module.value} value={module.value}>
+                            {module.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      placeholder="Field name (e.g., filename)"
+                      value={action.field || ''}
+                      onChange={(e) => updateAction('else', index, 'field', e.target.value)}
+                    />
+                    <Input
+                      placeholder="File source"
+                      value={action.source || 'pandadoc_document'}
+                      onChange={(e) => updateAction('else', index, 'source', e.target.value)}
+                    />
+                  </>
+                )}
+                
+                {action.type === 'send_email' && (
+                  <>
+                    <Input
+                      placeholder="To email address"
+                      value={action.to_email || ''}
+                      onChange={(e) => updateAction('else', index, 'to_email', e.target.value)}
+                    />
+                    <Input
+                      placeholder="Subject"
+                      value={action.subject || ''}
+                      onChange={(e) => updateAction('else', index, 'subject', e.target.value)}
+                    />
+                    <Input
+                      placeholder="Message body"
+                      value={action.body || ''}
+                      onChange={(e) => updateAction('else', index, 'body', e.target.value)}
                     />
                   </>
                 )}
@@ -593,11 +779,11 @@ function WorkflowEditor({
                 ifThenElseRules: {
                   if: [{ field: "document.status", operator: "equals", value: "completed" }],
                   then: [
-                    { type: "update_sugarcrm", module: "Opportunities", field: "sales_stage", value: "Closed Won" },
-                    { type: "attach_document", module: "Opportunities", field: "documents" }
+                    { type: "update_record", module: "Opportunities", field: "sales_stage", value: "Closed Won" },
+                    { type: "attach_file", module: "Opportunities", field: "filename", source: "pandadoc_document" }
                   ],
                   else: [
-                    { type: "log_activity", subject: "Document status changed but not completed" }
+                    { type: "create_note", name: "Document Status Change", description: "Document status changed but not completed" }
                   ]
                 },
                 priority: 100,
