@@ -47,6 +47,17 @@ export default function DocumentTemplatesPage() {
   // Fetch document templates for selected tenant
   const { data: templates = [], isLoading: templatesLoading, refetch: refetchTemplates } = useQuery<DocumentTemplate[]>({
     queryKey: ["/api/document-templates", selectedTenant, moduleFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams({ tenantId: selectedTenant });
+      if (moduleFilter) {
+        params.append('module', moduleFilter);
+      }
+      const response = await fetch(`/api/document-templates?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch templates');
+      }
+      return response.json();
+    },
     enabled: !!selectedTenant,
   });
 
