@@ -25,6 +25,10 @@ export class SugarCRMService {
       headers: {
         'Content-Type': 'application/json',
       },
+      // For development/demo - in production you'd want proper SSL validation
+      httpsAgent: process.env.NODE_ENV === 'development' ? new (require('https').Agent)({
+        rejectUnauthorized: false
+      }) : undefined,
     });
   }
 

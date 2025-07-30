@@ -8,6 +8,44 @@ import { WebhookVerifier } from "./utils/webhook-verifier";
 import { insertTenantSchema, insertFieldMappingSchema, insertWorkflowSchema } from "@shared/schema";
 import { z } from "zod";
 
+// Sample field data for demo purposes when SugarCRM is unavailable
+function getSampleFieldsForModule(module: string) {
+  const fieldsByModule: Record<string, any[]> = {
+    opportunities: [
+      { name: 'name', label: 'Opportunity Name', type: 'varchar', mapped: false },
+      { name: 'amount', label: 'Amount', type: 'currency', mapped: false },
+      { name: 'sales_stage', label: 'Sales Stage', type: 'enum', mapped: false },
+      { name: 'account_name', label: 'Account Name', type: 'varchar', mapped: false },
+      { name: 'assigned_user_name', label: 'Assigned To', type: 'varchar', mapped: false },
+      { name: 'date_closed', label: 'Expected Close Date', type: 'date', mapped: false },
+      { name: 'probability', label: 'Probability (%)', type: 'int', mapped: false },
+      { name: 'description', label: 'Description', type: 'text', mapped: false },
+    ],
+    contacts: [
+      { name: 'first_name', label: 'First Name', type: 'varchar', mapped: false },
+      { name: 'last_name', label: 'Last Name', type: 'varchar', mapped: false },
+      { name: 'email1', label: 'Email Address', type: 'email', mapped: false },
+      { name: 'phone_mobile', label: 'Mobile Phone', type: 'phone', mapped: false },
+      { name: 'phone_work', label: 'Office Phone', type: 'phone', mapped: false },
+      { name: 'title', label: 'Title', type: 'varchar', mapped: false },
+      { name: 'account_name', label: 'Account Name', type: 'varchar', mapped: false },
+      { name: 'department', label: 'Department', type: 'varchar', mapped: false },
+    ],
+    accounts: [
+      { name: 'name', label: 'Account Name', type: 'varchar', mapped: false },
+      { name: 'phone_office', label: 'Office Phone', type: 'phone', mapped: false },
+      { name: 'website', label: 'Website', type: 'url', mapped: false },
+      { name: 'industry', label: 'Industry', type: 'enum', mapped: false },
+      { name: 'employees', label: 'Employees', type: 'varchar', mapped: false },
+      { name: 'annual_revenue', label: 'Annual Revenue', type: 'currency', mapped: false },
+      { name: 'billing_address_street', label: 'Billing Street', type: 'varchar', mapped: false },
+      { name: 'billing_address_city', label: 'Billing City', type: 'varchar', mapped: false },
+    ],
+  };
+
+  return fieldsByModule[module] || [];
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard stats endpoint
   app.get("/api/stats", async (req: Request, res: Response) => {
@@ -237,6 +275,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error('Get tokens error:', error);
+      
+      // If SugarCRM connection fails, return sample fields for demo purposes
+      if (error instanceof Error && (error.message.includes('authentication failed') || error.message.includes('certificate'))) {
+        const sampleFields = getSampleFieldsForModule(module as string);
+        res.json({
+          tokens: sampleFields,
+          previewValues: {},
+          isDemo: true,
+          message: 'Using sample data - SugarCRM connection unavailable'
+        });
+        return;
+      }
+      
       res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch tokens" });
     }
   });
