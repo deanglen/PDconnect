@@ -1,6 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
 import { Tenant } from '@shared/schema';
-import { CertificateBasedAuth, createCertificateAuth, SecureAuthResult } from './certificate-auth';
 
 export interface SugarCRMField {
   name: string;
@@ -18,8 +17,6 @@ export class SugarCRMService {
   private accessToken?: string;
   private refreshToken?: string;
   private tokenExpiry?: Date;
-  private certificateAuth?: CertificateBasedAuth;
-  private useCertificateAuth: boolean = false;
 
   constructor(private tenant: Tenant) {
     this.client = axios.create({
@@ -29,42 +26,10 @@ export class SugarCRMService {
         'Content-Type': 'application/json',
       },
     });
-
-    // Initialize certificate-based authentication if configured
-    this.initializeCertificateAuth();
-  }
-
-  private initializeCertificateAuth(): void {
-    try {
-      // Check if tenant has certificate authentication enabled
-      const hasCertAuth = process.env[`${this.tenant.name.toUpperCase()}_CLIENT_CERT`] || 
-                         process.env.DEFAULT_CLIENT_CERT;
-      
-      if (hasCertAuth) {
-        this.certificateAuth = createCertificateAuth(this.tenant.name);
-        this.useCertificateAuth = true;
-        console.log(`Certificate-based authentication enabled for tenant: ${this.tenant.name}`);
-      }
-    } catch (error) {
-      console.error('Failed to initialize certificate auth:', error);
-      this.useCertificateAuth = false;
-    }
   }
 
   async authenticate(): Promise<void> {
     try {
-      // Use certificate-based authentication if enabled
-      if (this.useCertificateAuth && this.certificateAuth) {
-        const result = await this.authenticateWithCertificate();
-        if (result.success) {
-          return;
-        } else {
-          console.warn(`Certificate authentication failed: ${result.errorMessage}, falling back to password auth`);
-          this.useCertificateAuth = false;
-        }
-      }
-
-      // Standard password-based authentication
       const response = await this.client.post('/oauth2/token', {
         grant_type: 'password',
         username: this.tenant.sugarCrmUsername,
@@ -86,41 +51,6 @@ export class SugarCRMService {
     } catch (error: any) {
       const errorMessage = error.response?.data?.error_message || error.message;
       throw new Error(`SugarCRM authentication failed: ${errorMessage}`);
-    }
-  }
-
-  private async authenticateWithCertificate(): Promise<SecureAuthResult> {
-    if (!this.certificateAuth) {
-      return { success: false, errorMessage: 'Certificate authentication not initialized' };
-    }
-
-    try {
-      // Validate certificate first
-      const validation = await this.certificateAuth.validateCertificateChain();
-      if (!validation.isValid) {
-        return { success: false, errorMessage: validation.errorMessage };
-      }
-
-      // Authenticate with certificate
-      const result = await this.certificateAuth.authenticateWithCertificate(
-        this.tenant.sugarCrmUrl,
-        this.tenant.sugarCrmUsername || ''
-      );
-
-      if (result.success && result.accessToken) {
-        this.accessToken = result.accessToken;
-        this.refreshToken = result.refreshToken;
-        
-        // Update client with secure configuration
-        this.client = this.certificateAuth.createSecureClient(`${this.tenant.sugarCrmUrl}/rest/v11`);
-        this.client.defaults.headers.common['Authorization'] = `Bearer ${this.accessToken}`;
-        
-        console.log('Certificate-based authentication successful');
-      }
-
-      return result;
-    } catch (error: any) {
-      return { success: false, errorMessage: `Certificate authentication error: ${error.message}` };
     }
   }
 
@@ -260,51 +190,5 @@ export class SugarCRMService {
     }
 
     return tokens;
-  }
-
-  /**
-   * Verify XML signature on incoming SugarCRM data (for enterprise security)
-   */
-  async verifyXMLSignature(xmlData: string): Promise<{ isValid: boolean; errorMessage?: string; signedData?: any }> {
-    if (!this.certificateAuth) {
-      return { isValid: false, errorMessage: 'Certificate authentication not configured' };
-    }
-
-    try {
-      const result = await this.certificateAuth.verifyXMLResponse(xmlData);
-      return {
-        isValid: result.isValid,
-        errorMessage: result.errorMessage,
-        signedData: result.signedData
-      };
-    } catch (error: any) {
-      return { isValid: false, errorMessage: `XML signature verification failed: ${error.message}` };
-    }
-  }
-
-  /**
-   * Create signed XML document for secure data transmission
-   */
-  async createSignedDocument(data: any): Promise<string> {
-    if (!this.certificateAuth) {
-      throw new Error('Certificate authentication not configured');
-    }
-
-    return await this.certificateAuth.signXMLData(data);
-  }
-
-  /**
-   * Get certificate information for security auditing
-   */
-  getCertificateInfo(): any {
-    if (!this.certificateAuth || !this.useCertificateAuth) {
-      return null;
-    }
-
-    return {
-      tenantName: this.tenant.name,
-      useCertificateAuth: this.useCertificateAuth,
-      certificateConfigured: !!this.certificateAuth
-    };
   }
 }
