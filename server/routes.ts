@@ -7,6 +7,8 @@ import { WorkflowEngine } from "./services/workflow";
 import { WebhookVerifier } from "./utils/webhook-verifier";
 import { insertTenantSchema, insertFieldMappingSchema, insertWorkflowSchema } from "@shared/schema";
 import { z } from "zod";
+import { logger } from "./utils/logger";
+import { retryQueue, initializeRetryQueue } from "./utils/retry-queue";
 
 // Sample field data for demo purposes when SugarCRM is unavailable
 function getSampleFieldsForModule(module: string) {
@@ -47,6 +49,59 @@ function getSampleFieldsForModule(module: string) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize retry queue processing
+  initializeRetryQueue();
+
+  // Request logging middleware
+  app.use((req: Request, res: Response, next) => {
+    const requestId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    (req as any).requestId = requestId;
+    
+    const startTime = Date.now();
+    
+    // Log incoming request
+    logger.logApiRequest({
+      method: req.method,
+      url: req.url,
+      headers: req.headers,
+      body: req.body,
+      timestamp: new Date().toISOString(),
+      requestId
+    });
+
+    // Override res.json to log responses
+    const originalJson = res.json.bind(res);
+    res.json = function(body: any) {
+      const duration = Date.now() - startTime;
+      
+      logger.logApiResponse({
+        status: res.statusCode,
+        headers: res.getHeaders(),
+        body,
+        timestamp: new Date().toISOString(),
+        requestId,
+        duration
+      });
+      
+      return originalJson(body);
+    };
+
+    next();
+  });
+
+  // Health check endpoint
+  app.get("/health", (req: Request, res: Response) => {
+    const retryStats = retryQueue.getStats();
+    
+    res.status(200).json({ 
+      status: "healthy", 
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version || "1.0.0",
+      uptime: process.uptime(),
+      retryQueue: retryStats
+    });
+  });
+
   // Dashboard stats endpoint
   app.get("/api/stats", async (req: Request, res: Response) => {
     try {
@@ -215,12 +270,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const workflowEngine = new WorkflowEngine(tenant, sugarService, pandaService);
 
       // Process webhook through workflow engine
-      await workflowEngine.processWebhook(eventType, req.body);
-
-      res.status(200).json({ message: "Webhook processed successfully" });
+      try {
+        await workflowEngine.processWebhook(eventType, req.body);
+        
+        logger.logWebhookEvent(eventType, tenantId, req.body, { status: 'success' });
+        res.status(200).json({ message: "Webhook processed successfully" });
+      } catch (processingError) {
+        // Add to retry queue for failed webhook processing
+        const retryJobId = retryQueue.addJob(
+          tenantId,
+          'webhook_processing',
+          { eventType, data: req.body },
+          3 // max retries
+        );
+        
+        logger.logFailedOperation('webhook_processing', tenantId, processingError as Error);
+        logger.logWebhookEvent(eventType, tenantId, req.body, { 
+          status: 'failed', 
+          error: (processingError as Error).message,
+          retryJobId 
+        });
+        
+        // Still return success to PandaDoc to avoid retry storms
+        res.status(200).json({ 
+          message: "Webhook received, processing queued for retry",
+          retryJobId 
+        });
+      }
 
     } catch (error) {
-      console.error('Webhook processing error:', error);
+      logger.error('Webhook endpoint error', {
+        tenantId: tenantId || 'unknown',
+        requestId: (req as any).requestId
+      }, error);
       res.status(500).json({ message: "Failed to process webhook" });
     }
   });
@@ -274,11 +356,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     } catch (error) {
-      console.error('Get tokens error:', error);
+      logger.error('Get tokens error', {
+        tenantId: tenantId as string,
+        requestId: (req as any).requestId
+      }, error);
       
       // If SugarCRM connection fails, return sample fields for demo purposes
       if (error instanceof Error && (error.message.includes('authentication failed') || error.message.includes('certificate'))) {
-        const sampleFields = getSampleFieldsForModule(module as string);
+        const sampleFields = getSampleFieldsForModule(String(module));
         res.json({
           tokens: sampleFields,
           previewValues: {},
