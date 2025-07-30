@@ -18,7 +18,7 @@ export function Sidebar({ className = "" }: SidebarProps) {
   const [location] = useLocation();
 
   return (
-    <aside className={`w-60 bg-white shadow-lg border-r border-gray-200 ${className}`}>
+    <aside className={`w-60 bg-white shadow-lg border-r border-gray-200 flex-shrink-0 ${className}`}>
       <div className="p-6 border-b border-gray-200">
         <h1 className="text-xl font-semibold text-gray-900">Integration Manager</h1>
         <p className="text-sm text-gray-500 mt-1">SugarCRM ↔ PandaDoc</p>

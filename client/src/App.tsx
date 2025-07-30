@@ -35,7 +35,9 @@ function App() {
         <Toaster />
         <div className="flex h-screen bg-gray-50">
           <Sidebar />
-          <Router />
+          <main className="flex-1 overflow-auto">
+            <Router />
+          </main>
         </div>
       </TooltipProvider>
     </QueryClientProvider>
