@@ -84,12 +84,35 @@ export const documents = pgTable("documents", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const documentTemplates = pgTable("document_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  pandaDocTemplateId: text("panda_doc_template_id").notNull(),
+  sugarModule: text("sugar_module").notNull(), // Which SugarCRM module this template is for
+  isDefault: boolean("is_default").default(false),
+  // Document creation configuration
+  folderUuid: text("folder_uuid"), // Optional PandaDoc folder
+  tags: jsonb("tags").default([]), // Array of tags to apply
+  detectTitleVariables: boolean("detect_title_variables").default(true),
+  // Recipients configuration - can be overridden by request
+  defaultRecipients: jsonb("default_recipients").default([]),
+  // Token mappings - map SugarCRM fields to PandaDoc tokens
+  tokenMappings: jsonb("token_mappings").default([]),
+  // Field mappings - pre-fill form fields
+  fieldMappings: jsonb("field_mappings").default([]),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const tenantsRelations = relations(tenants, ({ many }) => ({
   fieldMappings: many(fieldMappings),
   workflows: many(workflows),
   webhookLogs: many(webhookLogs),
   documents: many(documents),
+  documentTemplates: many(documentTemplates),
 }));
 
 export const fieldMappingsRelations = relations(fieldMappings, ({ one }) => ({
@@ -116,6 +139,13 @@ export const webhookLogsRelations = relations(webhookLogs, ({ one }) => ({
 export const documentsRelations = relations(documents, ({ one }) => ({
   tenant: one(tenants, {
     fields: [documents.tenantId],
+    references: [tenants.id],
+  }),
+}));
+
+export const documentTemplatesRelations = relations(documentTemplates, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [documentTemplates.tenantId],
     references: [tenants.id],
   }),
 }));
@@ -154,6 +184,12 @@ export const insertDocumentSchema = createInsertSchema(documents).omit({
   updatedAt: true,
 });
 
+export const insertDocumentTemplateSchema = createInsertSchema(documentTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -167,3 +203,5 @@ export type InsertWebhookLog = z.infer<typeof insertWebhookLogSchema>;
 export type WebhookLog = typeof webhookLogs.$inferSelect;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Document = typeof documents.$inferSelect;
+export type InsertDocumentTemplate = z.infer<typeof insertDocumentTemplateSchema>;
+export type DocumentTemplate = typeof documentTemplates.$inferSelect;

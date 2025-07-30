@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import https from 'https';
 import { Tenant } from '@shared/schema';
 
 export interface SugarCRMField {
@@ -26,7 +27,7 @@ export class SugarCRMService {
         'Content-Type': 'application/json',
       },
       // For development/demo - in production you'd want proper SSL validation
-      httpsAgent: process.env.NODE_ENV === 'development' ? new (require('https').Agent)({
+      httpsAgent: process.env.NODE_ENV === 'development' ? new https.Agent({
         rejectUnauthorized: false
       }) : undefined,
     });

@@ -2,10 +2,10 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { SugarCRMService } from "./services/sugarcrm";
-import { PandaDocService } from "./services/pandadoc";
+import { PandaDocService, type SugarCRMDocumentRequest } from "./services/pandadoc";
 import { WorkflowEngine } from "./services/workflow";
 import { WebhookVerifier } from "./utils/webhook-verifier";
-import { insertTenantSchema, insertFieldMappingSchema, insertWorkflowSchema } from "@shared/schema";
+import { insertTenantSchema, insertFieldMappingSchema, insertWorkflowSchema, insertDocumentSchema } from "@shared/schema";
 import { z } from "zod";
 import { logger } from "./utils/logger";
 import { retryQueue, initializeRetryQueue } from "./utils/retry-queue";
@@ -522,6 +522,176 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(logs);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch webhook logs" });
+    }
+  });
+
+  // Document creation endpoint - SugarCRM to PandaDoc
+  app.post("/api/documents/create", async (req: Request, res: Response) => {
+    try {
+      const requestId = (req as any).requestId;
+      
+      // Validate the request body
+      const createDocumentRequest = z.object({
+        tenantId: z.string(),
+        sugarRecordId: z.string(),
+        sugarModule: z.string(),
+        templateId: z.string().optional(),
+        name: z.string().optional(),
+        recipients: z.array(z.object({
+          email: z.string().email(),
+          first_name: z.string(),
+          last_name: z.string(),
+          role: z.string(),
+          signing_order: z.number().optional()
+        })),
+        tokens: z.array(z.object({
+          name: z.string(),
+          value: z.string()
+        })).optional(),
+        fields: z.record(z.object({
+          value: z.string()
+        })).optional(),
+        tags: z.array(z.string()).optional(),
+        sendImmediately: z.boolean().default(false),
+        subject: z.string().optional(),
+        message: z.string().optional()
+      });
+
+      const validatedData = createDocumentRequest.parse(req.body);
+      
+      // Get tenant information
+      const tenant = await storage.getTenant(validatedData.tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      // Initialize services
+      const pandaDocService = new PandaDocService(tenant);
+      const sugarCrmService = new SugarCRMService(tenant);
+
+      // Get SugarCRM record data
+      let sugarCrmData: Record<string, any> | undefined;
+      try {
+        sugarCrmData = await sugarCrmService.getRecord(validatedData.sugarModule, validatedData.sugarRecordId);
+      } catch (error) {
+        logger.error('Failed to fetch SugarCRM record', {}, error);
+        // Continue without SugarCRM data - use provided data only
+      }
+
+      // Get template ID - use provided or get default for module
+      let templateId = validatedData.templateId;
+      if (!templateId) {
+        // For now, require template ID to be provided
+        // In the future, we could add default templates per module
+        return res.status(400).json({ 
+          message: "Template ID is required. Please configure a PandaDoc template for this request." 
+        });
+      }
+
+      // Create the document using PandaDoc service
+      const pandaDocRequest: SugarCRMDocumentRequest = {
+        tenantId: validatedData.tenantId,
+        sugarRecordId: validatedData.sugarRecordId,
+        sugarModule: validatedData.sugarModule,
+        templateId: templateId,
+        name: validatedData.name,
+        recipients: validatedData.recipients,
+        tokens: validatedData.tokens,
+        fields: validatedData.fields,
+        tags: validatedData.tags,
+        sendImmediately: validatedData.sendImmediately,
+        subject: validatedData.subject,
+        message: validatedData.message
+      };
+
+      const pandaDocResponse = await pandaDocService.createDocumentFromSugarCRM(
+        pandaDocRequest,
+        sugarCrmData
+      );
+
+      // Save document to database
+      const documentData = {
+        tenantId: validatedData.tenantId,
+        pandaDocId: pandaDocResponse.id,
+        sugarRecordId: validatedData.sugarRecordId,
+        sugarModule: validatedData.sugarModule,
+        name: pandaDocResponse.name,
+        status: pandaDocResponse.status,
+        publicUrl: pandaDocResponse.publicUrl
+      };
+
+      const savedDocument = await storage.createDocument(documentData);
+
+      logger.info('Document created successfully', {
+        tenantId: validatedData.tenantId,
+        requestId
+      }, {
+        documentId: pandaDocResponse.id,
+        sugarModule: validatedData.sugarModule,
+        sugarRecordId: validatedData.sugarRecordId
+      });
+
+      res.status(201).json({
+        document: savedDocument,
+        pandaDocResponse,
+        sugarCrmData: sugarCrmData ? { 
+          found: true, 
+          recordName: sugarCrmData.name || `${sugarCrmData.first_name || ''} ${sugarCrmData.last_name || ''}`.trim()
+        } : { found: false }
+      });
+
+    } catch (error: any) {
+      const requestId = (req as any).requestId;
+      
+      if (error instanceof z.ZodError) {
+        logger.error('Document creation validation failed', { requestId }, error);
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+
+      logger.error('Document creation failed', { requestId }, error);
+      
+      // Add to retry queue if it's a recoverable error
+      if (error.message.includes('timeout') || error.message.includes('rate limit')) {
+        try {
+          await retryQueue.addToQueue('create_document', req.body, {
+            maxRetries: 3,
+            retryDelay: 5000
+          });
+          
+          res.status(202).json({ 
+            message: "Document creation queued for retry due to temporary error",
+            error: error.message
+          });
+        } catch (queueError) {
+          res.status(500).json({ 
+            message: "Failed to create document and queue for retry",
+            error: error.message
+          });
+        }
+      } else {
+        res.status(500).json({ 
+          message: "Failed to create document",
+          error: error.message
+        });
+      }
+    }
+  });
+
+  // Get documents for a tenant
+  app.get("/api/documents", async (req: Request, res: Response) => {
+    try {
+      const { tenantId } = req.query;
+      if (!tenantId) {
+        return res.status(400).json({ message: "Tenant ID required" });
+      }
+      
+      const documents = await storage.getDocuments(tenantId as string);
+      res.json(documents);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch documents" });
     }
   });
 
