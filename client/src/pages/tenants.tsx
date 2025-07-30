@@ -129,6 +129,71 @@ export default function Tenants() {
               <DialogHeader>
                 <DialogTitle>Add New Tenant</DialogTitle>
               </DialogHeader>
+              
+              {/* Quick Templates */}
+              <div className="mb-6">
+                <p className="text-sm font-medium text-gray-700 mb-3">Quick Setup Templates</p>
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      form.reset({
+                        name: "Demo Corporation",
+                        sugarCrmUrl: "https://demo.sugarcrm.com",
+                        sugarCrmUsername: "admin",
+                        sugarCrmPassword: "",
+                        pandaDocApiKey: "",
+                        pandaDocSandbox: true,
+                        isActive: true,
+                      });
+                    }}
+                  >
+                    <i className="fas fa-flask mr-1"></i>
+                    Demo Template
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      form.reset({
+                        name: "Enterprise Client",
+                        sugarCrmUrl: "https://company.sugarondemand.com",
+                        sugarCrmUsername: "integration_user",
+                        sugarCrmPassword: "",
+                        pandaDocApiKey: "",
+                        pandaDocSandbox: false,
+                        isActive: true,
+                      });
+                    }}
+                  >
+                    <i className="fas fa-building mr-1"></i>
+                    Enterprise Template
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      form.reset({
+                        name: "Test Environment",
+                        sugarCrmUrl: "https://test.sugarcrm.eu",
+                        sugarCrmUsername: "test_user",
+                        sugarCrmPassword: "",
+                        pandaDocApiKey: "",
+                        pandaDocSandbox: true,
+                        isActive: false,
+                      });
+                    }}
+                  >
+                    <i className="fas fa-vial mr-1"></i>
+                    Testing Template
+                  </Button>
+                </div>
+              </div>
+
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -246,7 +311,72 @@ export default function Tenants() {
         }
       />
 
-      <div className="p-6">
+      <div className="p-6 space-y-6">
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Tenants</p>
+                  <p className="text-2xl font-bold text-gray-900">{tenants.length}</p>
+                </div>
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <i className="fas fa-building text-blue-600"></i>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Active</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {tenants.filter((t: any) => t.isActive).length}
+                  </p>
+                </div>
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <i className="fas fa-check-circle text-green-600"></i>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Sandbox</p>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {tenants.filter((t: any) => t.pandaDocSandbox).length}
+                  </p>
+                </div>
+                <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <i className="fas fa-flask text-orange-600"></i>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Production</p>
+                  <p className="text-2xl font-bold text-red-600">
+                    {tenants.filter((t: any) => !t.pandaDocSandbox).length}
+                  </p>
+                </div>
+                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                  <i className="fas fa-rocket text-red-600"></i>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -272,60 +402,85 @@ export default function Tenants() {
                 <p className="text-sm text-gray-400">Add your first tenant to get started</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SugarCRM URL</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PandaDoc Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Active</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredTenants.map((tenant: any) => (
-                      <tr key={tenant.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-white font-semibold mr-3">
-                              {tenant.name.substring(0, 2).toUpperCase()}
+              <div className="space-y-4">
+                {filteredTenants.map((tenant: any) => (
+                  <Card key={tenant.id} className="border-l-4 border-l-blue-500">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <h3 className="text-lg font-semibold text-gray-900">{tenant.name}</h3>
+                            <Badge variant={tenant.isActive ? "default" : "secondary"}>
+                              {tenant.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                            <Badge variant={tenant.pandaDocSandbox ? "outline" : "destructive"}>
+                              {tenant.pandaDocSandbox ? "Sandbox" : "Production"}
+                            </Badge>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">SugarCRM Instance</p>
+                              <p className="text-sm font-medium text-blue-600 hover:text-blue-800">
+                                <a href={tenant.sugarCrmUrl} target="_blank" rel="noopener noreferrer">
+                                  {tenant.sugarCrmUrl}
+                                </a>
+                              </p>
                             </div>
                             <div>
-                              <p className="font-medium text-gray-900">{tenant.name}</p>
-                              <p className="text-sm text-gray-500">{tenant.id}</p>
+                              <p className="text-sm text-gray-600 mb-1">Username</p>
+                              <p className="text-sm font-medium">{tenant.sugarCrmUsername}</p>
                             </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm text-gray-900 font-mono">{tenant.sugarCrmUrl}</span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge variant={tenant.isActive ? "default" : "secondary"}>
-                            {tenant.isActive ? "Connected" : "Inactive"}
-                          </Badge>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(tenant.updatedAt).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <Button variant="ghost" size="sm" className="text-primary hover:text-blue-700 mr-3">
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                            <div className="flex items-center gap-2">
+                              <i className="fas fa-key text-gray-400"></i>
+                              <span className="text-gray-600">API Key: </span>
+                              <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
+                                {tenant.pandaDocApiKey.substring(0, 8)}...
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <i className="fas fa-calendar text-gray-400"></i>
+                              <span className="text-gray-600">Created: </span>
+                              <span>{new Date(tenant.createdAt).toLocaleDateString()}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <i className="fas fa-clock text-gray-400"></i>
+                              <span className="text-gray-600">Updated: </span>
+                              <span>{new Date(tenant.updatedAt).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-2 ml-4">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            <i className="fas fa-edit mr-1"></i>
                             Edit
                           </Button>
                           <Button 
-                            variant="ghost" 
-                            size="sm" 
+                            variant="outline" 
+                            size="sm"
                             className="text-red-600 hover:text-red-700"
-                            onClick={() => deleteMutation.mutate(tenant.id)}
-                            disabled={deleteMutation.isPending}
+                            onClick={() => {
+                              if (confirm(`Are you sure you want to delete ${tenant.name}?`)) {
+                                deleteMutation.mutate(tenant.id);
+                              }
+                            }}
                           >
+                            <i className="fas fa-trash mr-1"></i>
                             Delete
                           </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
           </CardContent>
