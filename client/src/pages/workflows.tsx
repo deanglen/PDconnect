@@ -56,7 +56,7 @@ function WorkflowEditor({
   const [workflowData, setWorkflowData] = useState({
     name: editingWorkflow?.name || '',
     description: editingWorkflow?.description || '',
-    triggerEvent: editingWorkflow?.triggerEvent || 'document_signed',
+    triggerEvent: editingWorkflow?.triggerEvent || 'document_state_changed',
     conditions: editingWorkflow?.conditions || [] as WorkflowCondition[],
     ifThenElseRules: editingWorkflow?.ifThenElseRules || { 
       if: [] as WorkflowCondition[], 
@@ -77,13 +77,21 @@ function WorkflowEditor({
       : ''
   );
 
+  // Official PandaDoc webhook events from their documentation
   const triggerEvents = [
-    { value: 'document_signed', label: 'Document Signed' },
-    { value: 'document_viewed', label: 'Document Viewed' },
-    { value: 'document_created', label: 'Document Created' },
-    { value: 'document_completed', label: 'Document Completed' },
-    { value: 'document_declined', label: 'Document Declined' },
-    { value: 'document_voided', label: 'Document Voided' }
+    { value: 'recipient_completed', label: 'Recipient Completed', description: 'When a recipient completes their part of the document' },
+    { value: 'document_updated', label: 'Document Updated', description: 'When a document is updated or modified' },
+    { value: 'document_deleted', label: 'Document Deleted', description: 'When a document is deleted' },
+    { value: 'document_state_changed', label: 'Document State Changed', description: 'When the document status changes (draft, sent, completed, etc.)' },
+    { value: 'document_creation_failed', label: 'Document Creation Failed', description: 'When document creation fails' },
+    { value: 'document_completed_pdf_ready', label: 'Document Completed & PDF Ready', description: 'When document is completed and PDF is ready for download' },
+    { value: 'document_section_added', label: 'Document Section Added', description: 'When a section is added to a document' },
+    { value: 'quote_updated', label: 'Quote Updated', description: 'When a quote in the document is updated' },
+    { value: 'template_created', label: 'Template Created', description: 'When a new template is created' },
+    { value: 'template_updated', label: 'Template Updated', description: 'When a template is updated' },
+    { value: 'template_deleted', label: 'Template Deleted', description: 'When a template is deleted' },
+    { value: 'content_library_item_created', label: 'Content Library Item Created', description: 'When a content library item is created' },
+    { value: 'content_library_item_creation_failed', label: 'Content Library Item Creation Failed', description: 'When content library item creation fails' }
   ];
 
   const operators = [
@@ -98,20 +106,20 @@ function WorkflowEditor({
   ];
 
   const actionTypes = [
-    { value: 'update_sugarcrm', label: 'Update SugarCRM Field' },
-    { value: 'create_note', label: 'Create Note/Activity' },
-    { value: 'send_notification', label: 'Send Email Notification' },
-    { value: 'attach_document', label: 'Attach Document' },
-    { value: 'log_activity', label: 'Log Activity' },
-    { value: 'webhook_call', label: 'Make Webhook Call' }
+    { value: 'update_sugarcrm', label: 'Update SugarCRM Field', description: 'Update a specific field in a SugarCRM record' },
+    { value: 'create_note', label: 'Create Note/Activity', description: 'Create a new note or activity in SugarCRM' },
+    { value: 'attach_document', label: 'Attach Document', description: 'Attach the PandaDoc document to a SugarCRM record' },
+    { value: 'send_notification', label: 'Send Email Notification', description: 'Send an email notification to specified recipients' },
+    { value: 'log_activity', label: 'Log Activity', description: 'Log an activity with details in SugarCRM' }
   ];
 
   const sugarModules = [
-    { value: 'Opportunities', label: 'Opportunities' },
-    { value: 'Contacts', label: 'Contacts' },
-    { value: 'Accounts', label: 'Accounts' },
-    { value: 'Leads', label: 'Leads' },
-    { value: 'Cases', label: 'Cases' }
+    { value: 'Opportunities', label: 'Opportunities', description: 'Sales opportunities and deals' },
+    { value: 'Contacts', label: 'Contacts', description: 'Individual contacts and people' },
+    { value: 'Accounts', label: 'Accounts', description: 'Companies and organizations' },
+    { value: 'Leads', label: 'Leads', description: 'Potential customers and prospects' },
+    { value: 'Cases', label: 'Cases', description: 'Customer support cases' },
+    { value: 'Notes', label: 'Notes', description: 'Notes and attachments' }
   ];
 
   const addCondition = () => {
@@ -189,30 +197,61 @@ function WorkflowEditor({
         </TabsList>
 
         <TabsContent value="point_click" className="space-y-6">
+          {/* Helper Information */}
+          <Alert>
+            <AlertDescription>
+              <div className="space-y-2">
+                <h4 className="font-medium">Creating Your Workflow</h4>
+                <ol className="text-sm space-y-1 list-decimal list-inside">
+                  <li><strong>Choose a PandaDoc webhook event</strong> - This determines when your workflow triggers</li>
+                  <li><strong>Add conditions (optional)</strong> - Control when the workflow should run based on document data</li>
+                  <li><strong>Define actions</strong> - Specify what should happen in your SugarCRM when the event occurs</li>
+                </ol>
+                <p className="text-xs text-gray-600 mt-2">
+                  <strong>Note:</strong> Make sure to configure the webhook URL in your PandaDoc account settings to receive events.
+                </p>
+              </div>
+            </AlertDescription>
+          </Alert>
+
           {/* Basic Information */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="name">Workflow Name</Label>
+              <Label htmlFor="name" className="text-sm font-medium">
+                Workflow Name *
+              </Label>
+              <p className="text-xs text-gray-600 mb-2">
+                Give your workflow a descriptive name
+              </p>
               <Input
                 id="name"
                 value={workflowData.name}
                 onChange={(e) => setWorkflowData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="e.g., Document Signed Workflow"
+                placeholder="e.g., Update Opportunity When Document Signed"
+                className="w-full"
               />
             </div>
             <div>
-              <Label htmlFor="triggerEvent">Trigger Event</Label>
+              <Label htmlFor="triggerEvent" className="text-sm font-medium">
+                PandaDoc Webhook Event *
+              </Label>
+              <p className="text-xs text-gray-600 mb-2">
+                Choose which PandaDoc event will trigger this workflow
+              </p>
               <Select
                 value={workflowData.triggerEvent}
                 onValueChange={(value) => setWorkflowData(prev => ({ ...prev, triggerEvent: value }))}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select a PandaDoc webhook event" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-60 overflow-y-auto">
                   {triggerEvents.map(event => (
                     <SelectItem key={event.value} value={event.value}>
-                      {event.label}
+                      <div className="flex flex-col">
+                        <div className="font-medium">{event.label}</div>
+                        <div className="text-xs text-gray-500 mt-1">{event.description}</div>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -221,19 +260,28 @@ function WorkflowEditor({
           </div>
 
           <div>
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description" className="text-sm font-medium">
+              Description
+            </Label>
+            <p className="text-xs text-gray-600 mb-2">
+              Explain what this workflow will do when triggered
+            </p>
             <Textarea
               id="description"
               value={workflowData.description}
               onChange={(e) => setWorkflowData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Describe what this workflow does..."
+              placeholder="e.g., Automatically update the opportunity sales stage to 'Closed Won' and attach the signed document when a PandaDoc document is completed..."
+              className="min-h-20"
             />
           </div>
 
           {/* IF Conditions */}
           <div className="border rounded-lg p-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">IF Conditions</h3>
+              <div>
+                <h3 className="text-lg font-semibold">IF Conditions (Optional)</h3>
+                <p className="text-sm text-gray-600">Add conditions to control when this workflow runs</p>
+              </div>
               <Button type="button" variant="outline" size="sm" onClick={addCondition}>
                 <i className="fas fa-plus mr-2"></i>
                 Add Condition
@@ -302,7 +350,10 @@ function WorkflowEditor({
           {/* THEN Actions */}
           <div className="border rounded-lg p-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">THEN Actions</h3>
+              <div>
+                <h3 className="text-lg font-semibold">THEN Actions</h3>
+                <p className="text-sm text-gray-600">What should happen when conditions are met?</p>
+              </div>
               <Button type="button" variant="outline" size="sm" onClick={() => addAction('then')}>
                 <i className="fas fa-plus mr-2"></i>
                 Add Action
