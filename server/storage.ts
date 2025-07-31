@@ -196,6 +196,11 @@ export class DatabaseStorage implements IStorage {
     return document || undefined;
   }
 
+  async getDocumentByPandaDocId(pandaDocId: string): Promise<Document | undefined> {
+    const [document] = await db.select().from(documents).where(eq(documents.pandaDocId, pandaDocId));
+    return document || undefined;
+  }
+
   async createDocument(document: InsertDocument): Promise<Document> {
     const [newDocument] = await db.insert(documents).values(document).returning();
     return newDocument;

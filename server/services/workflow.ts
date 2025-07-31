@@ -57,30 +57,23 @@ export class WorkflowEngine {
 
       for (const workflow of workflows) {
         try {
-          console.log(`Processing workflow ${workflow.id}, active: ${workflow.isActive}`);
-          
           // Handle IF/THEN/ELSE structure or simple actions
           const rules = workflow.ifThenElseRules as any;
           if (rules && rules.if) {
-            console.log(`Evaluating IF conditions:`, rules.if);
             const conditionsMet = this.evaluateIfConditions(rules.if, payload);
-            console.log(`Conditions met: ${conditionsMet}`);
             
             if (conditionsMet && rules.then && Array.isArray(rules.then)) {
-              console.log(`Executing THEN actions:`, rules.then);
               for (const action of rules.then) {
                 await this.executeAction(action, payload);
                 actionsTriggered++;
               }
             } else if (!conditionsMet && rules.else && Array.isArray(rules.else)) {
-              console.log(`Executing ELSE actions:`, rules.else);
               for (const action of rules.else) {
                 await this.executeAction(action, payload);
                 actionsTriggered++;
               }
             }
           } else if (workflow.actions && Array.isArray(workflow.actions)) {
-            console.log(`Executing simple actions:`, workflow.actions);
             for (const action of workflow.actions) {
               await this.executeAction(action, payload);
               actionsTriggered++;
@@ -165,9 +158,19 @@ export class WorkflowEngine {
     }
 
     // Get document from payload to find related Sugar record
-    const document = await storage.getDocument(payload.data.id);
+    const document = await storage.getDocumentByPandaDocId(payload.data.id);
     if (!document || !document.sugarRecordId) {
-      throw new Error('No related SugarCRM record found for document');
+      // Use metadata if document not found in storage
+      const recordId = payload.data.metadata?.sugar_record_id;
+      if (!recordId) {
+        throw new Error('No related SugarCRM record found for document');
+      }
+      // Use the record ID from metadata
+      const updateData = {
+        [action.field]: this.interpolateValue(action.value, payload),
+      };
+      await this.sugarCrmService.updateRecord(action.module, recordId, updateData);
+      return;
     }
 
     const updateData = {
