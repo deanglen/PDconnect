@@ -252,6 +252,23 @@ The application is designed to be deployed as a single service that handles both
 - **Request Logging**: All API interactions logged with unique request IDs for troubleshooting
 - **Document Tracking**: Created documents stored in database with links to original SugarCRM records
 
+## Recent Updates - Performance Optimization & JSON View Enhancement (January 2025)
+
+### Field Mappings Performance & UI Improvements  
+- **Fixed toLowerCase() Error**: Added null/undefined checks for field.name preventing browser crashes when SugarCRM field data is incomplete
+- **Browser Performance Optimization**: Enhanced tokens endpoint with conservative limits (max 20 additional fields, 1.5s timeout) to prevent "Page Unresponsive" errors
+- **JSON View/Edit Feature**: Added direct JSON view and edit capability for mapping data with dialog interface for advanced users
+- **Auto-Population Enhancement**: Fixed empty tokenMappings field by implementing automatic population from existing field mappings when creating/editing document templates
+- **Enhanced Form Handling**: Added proper change detection and module selection synchronization with handleInputChange function
+- **UI Error Improvements**: Enhanced error handling with proper form validation and user feedback for failed operations
+
+### Technical Implementation Features
+- **Null-Safe Field Processing**: All field operations now include proper null/undefined checks to prevent runtime errors
+- **Performance Monitoring**: Tokens endpoint optimized for browser stability with timeout protection
+- **Data Synchronization**: Document templates automatically sync with field mappings for consistent token generation
+- **Direct JSON Editing**: Power users can now view and edit mapping configurations as JSON with real-time validation
+- **Error Recovery**: Comprehensive error handling prevents application crashes from malformed data
+
 ## Recent Updates - Field Mapping Integration Enhancement (January 2025)
 
 ### Integrated Field Mapping System with `/create-doc` Endpoint
