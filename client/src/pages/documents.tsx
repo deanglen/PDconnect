@@ -10,9 +10,10 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { FileText, Plus, Edit, Trash2, Copy, Settings } from "lucide-react";
+import { FileText, Plus, Edit, Trash2, Copy, Settings, Code2 } from "lucide-react";
 import type { Tenant, DocumentTemplate, InsertDocumentTemplate } from "@shared/schema";
 
 export default function PDRequestsPage() {
@@ -23,6 +24,8 @@ export default function PDRequestsPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<DocumentTemplate | null>(null);
   const [moduleFilter, setModuleFilter] = useState<string>("");
+  const [configMode, setConfigMode] = useState<'visual' | 'json'>('visual');
+  const [jsonConfig, setJsonConfig] = useState("");
   
   const [formData, setFormData] = useState<Partial<InsertDocumentTemplate>>({
     tenantId: "",
@@ -159,6 +162,8 @@ export default function PDRequestsPage() {
       isActive: true,
       isDefault: false
     });
+    setJsonConfig("");
+    setConfigMode('visual');
   };
 
   const openCreateForm = () => {
@@ -183,13 +188,30 @@ export default function PDRequestsPage() {
       isDefault: template.isDefault
     });
     setEditingTemplate(template);
+    setJsonConfig(JSON.stringify(template, null, 2));
     setShowCreateForm(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.tenantId || !formData.pandaDocTemplateId) {
+    let submitData = formData;
+    
+    if (configMode === 'json') {
+      try {
+        const parsedConfig = JSON.parse(jsonConfig);
+        submitData = parsedConfig;
+      } catch (error) {
+        toast({ 
+          title: "Error", 
+          description: "Invalid JSON configuration. Please check your syntax.",
+          variant: "destructive" 
+        });
+        return;
+      }
+    }
+    
+    if (!submitData.name || !submitData.tenantId || !submitData.pandaDocTemplateId) {
       toast({ 
         title: "Error", 
         description: "Please fill in all required fields",
@@ -201,10 +223,10 @@ export default function PDRequestsPage() {
     if (editingTemplate) {
       updateTemplateMutation.mutate({ 
         id: editingTemplate.id, 
-        data: formData as InsertDocumentTemplate 
+        data: submitData as InsertDocumentTemplate 
       });
     } else {
-      createTemplateMutation.mutate(formData as InsertDocumentTemplate);
+      createTemplateMutation.mutate(submitData as InsertDocumentTemplate);
     }
   };
 
@@ -399,7 +421,20 @@ export default function PDRequestsPage() {
             </DialogTitle>
           </DialogHeader>
           
-          <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto max-h-[calc(90vh-8rem)] pr-2">
+          <Tabs value={configMode} onValueChange={(value) => setConfigMode(value as 'visual' | 'json')} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="visual" className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Visual Config
+              </TabsTrigger>
+              <TabsTrigger value="json" className="flex items-center gap-2">
+                <Code2 className="h-4 w-4" />
+                JSON Config
+              </TabsTrigger>
+            </TabsList>
+            
+            <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto max-h-[calc(90vh-10rem)] pr-2">
+              <TabsContent value="visual" className="space-y-6 mt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Request Name *</Label>
@@ -576,28 +611,68 @@ export default function PDRequestsPage() {
                 checked={formData.isActive ?? true}
                 onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isActive: checked }))}
               />
-            </div>
+              </div>
+              </TabsContent>
+              
+              <TabsContent value="json" className="space-y-6 mt-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>JSON Configuration</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Advanced configuration using JSON format. Use this when the visual form doesn't meet your requirements.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Textarea
+                      value={jsonConfig}
+                      onChange={(e) => setJsonConfig(e.target.value)}
+                      placeholder={`{
+  "tenantId": "tenant-id",
+  "name": "Request Name",
+  "sugarModule": "Opportunities",
+  "pandaDocTemplateId": "template-uuid",
+  "folderUuid": "",
+  "tags": [],
+  "detectTitleVariables": true,
+  "defaultRecipients": [
+    {
+      "email": "user@example.com",
+      "role": "signer"
+    }
+  ],
+  "tokenMappings": [],
+  "fieldMappings": [],
+  "isActive": true,
+  "isDefault": false
+}`}
+                      className="min-h-[400px] font-mono text-sm"
+                    />
+                  </div>
+                </div>
+              </TabsContent>
 
-            <div className="flex justify-end space-x-2 pt-6">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowCreateForm(false);
-                  setEditingTemplate(null);
-                  resetForm();
-                }}
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={createTemplateMutation.isPending || updateTemplateMutation.isPending}
-              >
-                {editingTemplate ? "Update Request" : "Create Request"}
-              </Button>
-            </div>
-          </form>
+              <div className="flex justify-end space-x-2 pt-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowCreateForm(false);
+                    setEditingTemplate(null);
+                    resetForm();
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={createTemplateMutation.isPending || updateTemplateMutation.isPending}
+                >
+                  {editingTemplate ? "Update Request" : "Create Request"}
+                </Button>
+              </div>
+            </form>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </div>
