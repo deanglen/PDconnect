@@ -212,15 +212,18 @@ export class DatabaseStorage implements IStorage {
 
   // Document template methods
   async getDocumentTemplates(tenantId: string, module?: string): Promise<DocumentTemplate[]> {
-    let query = db.select().from(documentTemplates).where(eq(documentTemplates.tenantId, tenantId));
+    const conditions = [eq(documentTemplates.tenantId, tenantId)];
     
     if (module) {
       // Make module comparison case-insensitive by capitalizing first letter
       const normalizedModule = module.charAt(0).toUpperCase() + module.slice(1);
-      query = query.where(and(eq(documentTemplates.tenantId, tenantId), eq(documentTemplates.sugarModule, normalizedModule)));
+      conditions.push(eq(documentTemplates.sugarModule, normalizedModule));
     }
     
-    return await query.orderBy(desc(documentTemplates.createdAt));
+    return await db.select()
+      .from(documentTemplates)
+      .where(and(...conditions))
+      .orderBy(desc(documentTemplates.createdAt));
   }
 
   async getDocumentTemplate(id: string): Promise<DocumentTemplate | undefined> {

@@ -300,7 +300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       logger.error('Webhook endpoint error', {
-        tenantId: (tenantId as string) || 'unknown',
+        tenantId: (req.body?.data?.metadata?.tenant_id as string) || 'unknown',
         requestId: (req as any).requestId
       }, error);
       res.status(500).json({ message: "Failed to process webhook" });
@@ -321,29 +321,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Tenant not found" });
       }
 
-      const sugarService = new SugarCRMService(tenant);
-      
-      // Get module fields
-      const fields = await sugarService.getModuleFields(module as string);
-      
-      // Get existing field mappings
+      // Get existing field mappings (fast database operation)
       const mappings = await storage.getFieldMappings(tenantId as string, module as string);
       
-      // Generate token list
-      const tokens = fields.map(field => ({
-        name: field.name,
-        label: field.label,
-        type: field.type,
-        token: `{{${field.name}}}`,
-        mapped: mappings.some(m => m.sugarField === field.name),
-        pandaDocToken: mappings.find(m => m.sugarField === field.name)?.pandaDocToken,
+      // Return tokens based on existing mappings first for quick response
+      const mappingTokens = mappings.map(mapping => ({
+        name: mapping.sugarField,
+        label: mapping.sugarFieldLabel,
+        type: mapping.sugarFieldType,
+        token: `{{${mapping.sugarField}}}`,
+        mapped: true,
+        pandaDocToken: mapping.pandaDocToken,
       }));
 
-      // If recordId provided, also get sample values
+      // Try to get SugarCRM fields with timeout to prevent hanging
+      let additionalTokens: any[] = [];
+      try {
+        const sugarService = new SugarCRMService(tenant);
+        
+        // Set a shorter timeout for the SugarCRM call
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('SugarCRM API timeout')), 3000)
+        );
+        
+        const fieldsPromise = sugarService.getModuleFields(module as string);
+        const fields = await Promise.race([fieldsPromise, timeoutPromise]) as any[];
+        
+        // Add unmapped fields
+        additionalTokens = fields
+          .filter(field => !mappings.some(m => m.sugarField === field.name))
+          .map(field => ({
+            name: field.name,
+            label: field.label,
+            type: field.type,
+            token: `{{${field.name}}}`,
+            mapped: false,
+            pandaDocToken: undefined,
+          }));
+      } catch (error) {
+        console.warn('SugarCRM fields unavailable, using mappings only:', error);
+      }
+
+      const allTokens = [...mappingTokens, ...additionalTokens];
+
+      // If recordId provided, try to get sample values (with timeout)
       let previewValues = {};
       if (recordId) {
         try {
-          const record = await sugarService.getRecord(module as string, recordId as string);
+          const sugarService = new SugarCRMService(tenant);
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Record fetch timeout')), 2000)
+          );
+          
+          const recordPromise = sugarService.getRecord(module as string, recordId as string);
+          const record = await Promise.race([recordPromise, timeoutPromise]) as any;
           previewValues = sugarService.generateTokensFromRecord(record);
         } catch (error) {
           console.warn('Could not fetch record for preview:', error);
@@ -351,7 +382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({
-        tokens,
+        tokens: allTokens,
         previewValues,
       });
 
@@ -361,19 +392,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         requestId: (req as any).requestId
       }, error);
       
-      // If SugarCRM connection fails, return sample fields for demo purposes
-      if (error instanceof Error && (error.message.includes('authentication failed') || error.message.includes('certificate'))) {
-        const sampleFields = getSampleFieldsForModule(String(module));
+      // Always return existing mappings as fallback
+      try {
+        const mappings = await storage.getFieldMappings(req.query.tenantId as string, req.query.module as string);
+        const fallbackTokens = mappings.map(mapping => ({
+          name: mapping.sugarField,
+          label: mapping.sugarFieldLabel,
+          type: mapping.sugarFieldType,
+          token: `{{${mapping.sugarField}}}`,
+          mapped: true,
+          pandaDocToken: mapping.pandaDocToken,
+        }));
+        
         res.json({
-          tokens: sampleFields,
+          tokens: fallbackTokens,
           previewValues: {},
           isDemo: true,
-          message: 'Using sample data - SugarCRM connection unavailable'
+          message: 'Using existing field mappings - SugarCRM connection unavailable'
         });
-        return;
+      } catch (fallbackError) {
+        res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch tokens" });
       }
-      
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to fetch tokens" });
     }
   });
 
