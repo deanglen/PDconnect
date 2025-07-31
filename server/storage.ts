@@ -100,7 +100,9 @@ export class DatabaseStorage implements IStorage {
   async getFieldMappings(tenantId: string, module?: string): Promise<FieldMapping[]> {
     const conditions = [eq(fieldMappings.tenantId, tenantId)];
     if (module) {
-      conditions.push(eq(fieldMappings.sugarModule, module));
+      // Make module comparison case-insensitive by capitalizing first letter
+      const normalizedModule = module.charAt(0).toUpperCase() + module.slice(1);
+      conditions.push(eq(fieldMappings.sugarModule, normalizedModule));
     }
     return await db.select().from(fieldMappings).where(and(...conditions));
   }
@@ -213,7 +215,9 @@ export class DatabaseStorage implements IStorage {
     let query = db.select().from(documentTemplates).where(eq(documentTemplates.tenantId, tenantId));
     
     if (module) {
-      query = query.where(and(eq(documentTemplates.tenantId, tenantId), eq(documentTemplates.sugarModule, module)));
+      // Make module comparison case-insensitive by capitalizing first letter
+      const normalizedModule = module.charAt(0).toUpperCase() + module.slice(1);
+      query = query.where(and(eq(documentTemplates.tenantId, tenantId), eq(documentTemplates.sugarModule, normalizedModule)));
     }
     
     return await query.orderBy(desc(documentTemplates.createdAt));
