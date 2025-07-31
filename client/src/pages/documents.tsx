@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,6 +62,18 @@ export default function PDRequestsPage() {
       return response.json();
     },
     enabled: !!selectedTenant,
+  });
+
+  // Fetch field mappings for auto-populating token mappings
+  const { data: fieldMappings = [] } = useQuery({
+    queryKey: ["/api/field-mappings", selectedTenant, formData.sugarModule],
+    queryFn: async () => {
+      if (!selectedTenant || !formData.sugarModule) return [];
+      const response = await fetch(`/api/field-mappings?tenantId=${selectedTenant}&module=${formData.sugarModule}`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!selectedTenant && !!formData.sugarModule,
   });
 
   // Create template mutation
@@ -168,9 +180,55 @@ export default function PDRequestsPage() {
 
   const openCreateForm = () => {
     resetForm();
-    setFormData(prev => ({ ...prev, tenantId: selectedTenant }));
+    const autoTokenMappings = fieldMappings.map((mapping: any) => ({
+      sugar_field: mapping.sugarField,
+      panda_doc_token: mapping.pandaDocToken.replace(/[{}]/g, '') // Remove {{ }} brackets
+    }));
+    
+    setFormData(prev => ({ 
+      ...prev, 
+      tenantId: selectedTenant,
+      tokenMappings: autoTokenMappings
+    }));
     setShowCreateForm(true);
   };
+
+  const handleInputChange = (field: keyof InsertDocumentTemplate, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Auto-populate token mappings when module changes
+    if (field === 'sugarModule' && fieldMappings.length > 0 && !editingTemplate) {
+      const moduleFieldMappings = fieldMappings.filter((mapping: any) => 
+        mapping.sugarModule.toLowerCase() === value.toLowerCase()
+      );
+      if (moduleFieldMappings.length > 0) {
+        const autoTokenMappings = moduleFieldMappings.map((mapping: any) => ({
+          sugar_field: mapping.sugarField,
+          panda_doc_token: mapping.pandaDocToken.replace(/[{}]/g, '')
+        }));
+        setFormData(prev => ({ ...prev, tokenMappings: autoTokenMappings }));
+      } else {
+        // Clear token mappings if no field mappings exist for this module
+        setFormData(prev => ({ ...prev, tokenMappings: [] }));
+      }
+    }
+  };
+
+  // Auto-populate token mappings when field mappings are available and module matches
+  useEffect(() => {
+    if (fieldMappings.length > 0 && formData.sugarModule && showCreateForm && !editingTemplate) {
+      const moduleFieldMappings = fieldMappings.filter((mapping: any) => 
+        mapping.sugarModule.toLowerCase() === formData.sugarModule.toLowerCase()
+      );
+      if (moduleFieldMappings.length > 0) {
+        const autoTokenMappings = moduleFieldMappings.map((mapping: any) => ({
+          sugar_field: mapping.sugarField,
+          panda_doc_token: mapping.pandaDocToken.replace(/[{}]/g, '')
+        }));
+        setFormData(prev => ({ ...prev, tokenMappings: autoTokenMappings }));
+      }
+    }
+  }, [fieldMappings, formData.sugarModule, showCreateForm, editingTemplate]);
 
   const openEditForm = (template: DocumentTemplate) => {
     setFormData({
@@ -451,7 +509,7 @@ export default function PDRequestsPage() {
                 <Label htmlFor="sugarModule">SugarCRM Module *</Label>
                 <Select 
                   value={formData.sugarModule || ""} 
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, sugarModule: value }))}
+                  onValueChange={(value) => handleInputChange('sugarModule', value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select module" />
