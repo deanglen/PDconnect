@@ -30,7 +30,8 @@ function getAuthConfig(): AuthConfig {
       '/api/stats',
       '/api/webhook/pandadoc',
       '/api/create-doc',
-      '/api/tokens'
+      '/api/tokens',
+      '/api/users/me'  // User profile endpoint - uses personal API keys
     ]
   };
 }
