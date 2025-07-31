@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/topbar";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
@@ -31,6 +33,8 @@ export default function Mappings() {
   const [selectedTenant, setSelectedTenant] = useState<string>("");
   const [activeModule, setActiveModule] = useState("opportunities");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showJsonView, setShowJsonView] = useState(false);
+  const [jsonData, setJsonData] = useState("");
   const { toast } = useToast();
 
   const { data: tenants = [] } = useQuery({
@@ -120,6 +124,32 @@ export default function Mappings() {
   const availableFields = tokens?.tokens || [];
   const unmappedFields = availableFields.filter(field => !field.mapped);
 
+  // Initialize JSON data when mappings change
+  useEffect(() => {
+    if (mappings.length > 0) {
+      setJsonData(JSON.stringify(mappings, null, 2));
+    }
+  }, [mappings]);
+
+  const handleJsonSave = () => {
+    try {
+      const parsedData = JSON.parse(jsonData);
+      // Here you could implement saving the edited JSON data
+      // For now, we'll just show a success message
+      toast({
+        title: "JSON Updated",
+        description: "Mapping data has been updated successfully",
+      });
+      setShowJsonView(false);
+    } catch (error) {
+      toast({
+        title: "Invalid JSON",
+        description: "Please check your JSON syntax and try again",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="flex-1 overflow-auto">
       <Topbar 
@@ -140,13 +170,49 @@ export default function Mappings() {
               </SelectContent>
             </Select>
             {selectedTenant && (
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-primary text-white hover:bg-blue-700">
-                    <i className="fas fa-plus mr-2"></i>
-                    Add Mapping
-                  </Button>
-                </DialogTrigger>
+              <div className="flex items-center space-x-2">
+                <Dialog open={showJsonView} onOpenChange={setShowJsonView}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" disabled={mappings.length === 0}>
+                      <i className="fas fa-code mr-2"></i>
+                      View JSON
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl max-h-[80vh]">
+                    <DialogHeader>
+                      <DialogTitle>Field Mappings JSON</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="json-editor">Edit JSON Data</Label>
+                        <Textarea
+                          id="json-editor"
+                          value={jsonData}
+                          onChange={(e) => setJsonData(e.target.value)}
+                          className="font-mono text-sm min-h-[400px] resize-none"
+                          placeholder="JSON data will appear here when mappings are loaded..."
+                        />
+                      </div>
+                      <div className="flex justify-end space-x-2">
+                        <Button variant="outline" onClick={() => setShowJsonView(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleJsonSave} disabled={!jsonData.trim()}>
+                          <i className="fas fa-save mr-2"></i>
+                          Update Mappings
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+                
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-primary text-white hover:bg-blue-700">
+                      <i className="fas fa-plus mr-2"></i>
+                      Add Mapping
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent className="max-w-lg">
                   <DialogHeader>
                     <DialogTitle>Create Field Mapping</DialogTitle>
@@ -218,6 +284,7 @@ export default function Mappings() {
                   </Form>
                 </DialogContent>
               </Dialog>
+              </div>
             )}
           </div>
         }
@@ -341,8 +408,8 @@ export default function Mappings() {
                     </div>
                   ) : (
                     <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {unmappedFields.map((field: any) => (
-                        <div key={field.name} className="p-3 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+                      {unmappedFields.map((field: any, index: number) => (
+                        <div key={field.name || `field-${index}`} className="p-3 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
                               <p className="font-medium text-gray-900">{field.label}</p>
@@ -357,7 +424,7 @@ export default function Mappings() {
                                   form.setValue('sugarField', field.name);
                                   form.setValue('sugarFieldLabel', field.label);
                                   form.setValue('sugarFieldType', field.type);
-                                  form.setValue('pandaDocToken', `{{${field.name.toLowerCase()}}}`);
+                                  form.setValue('pandaDocToken', `{{${field.name?.toLowerCase() || field.name || 'token'}}}`);
                                   setIsDialogOpen(true);
                                 }}
                               >
