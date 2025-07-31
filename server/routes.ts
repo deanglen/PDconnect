@@ -876,28 +876,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fieldCount: Object.keys(recordData).length
       });
 
-      // 3. Generate PandaDoc tokens from SugarCRM fields
-      const tokens: Array<{ name: string; value: string }> = [];
+      // 3. Load field mapping configuration for this tenant and module
+      const fieldMappings = await storage.getFieldMappings(tenant_id, module);
       
-      // Convert all SugarCRM fields to PandaDoc tokens
-      Object.entries(recordData).forEach(([fieldName, value]) => {
-        if (value !== null && value !== undefined && value !== '') {
-          // Create token name from field name (e.g., 'first_name' -> 'first_name')
-          tokens.push({
-            name: fieldName,
-            value: String(value)
-          });
-        }
+      logger.info('Retrieved field mappings', { requestId }, {
+        tenant_id,
+        module,
+        mappingCount: fieldMappings.length
       });
 
-      // Add metadata tokens
+      // 4. Resolve mapped values dynamically from SugarCRM record
+      const tokens: Array<{ name: string; value: string }> = [];
+      
+      for (const mapping of fieldMappings) {
+        if (!mapping.isActive) continue;
+        
+        // Get value from SugarCRM record (support for nested/related records could be added here)
+        const fieldValue = recordData[mapping.sugarField];
+        
+        if (fieldValue !== null && fieldValue !== undefined && fieldValue !== '') {
+          // Extract token name from PandaDoc token (remove {{ }} brackets)
+          const tokenName = mapping.pandaDocToken.replace(/[{}]/g, '').trim();
+          
+          tokens.push({
+            name: tokenName,
+            value: String(fieldValue)
+          });
+          
+          logger.debug('Mapped field to token', { requestId }, {
+            sugarField: mapping.sugarField,
+            pandaDocToken: mapping.pandaDocToken,
+            tokenName,
+            hasValue: !!fieldValue
+          });
+        }
+      }
+
+      // Add standard metadata tokens (always include these)
       tokens.push({ name: 'sugar_record_id', value: record_id });
       tokens.push({ name: 'sugar_module', value: module });
       tokens.push({ name: 'creation_date', value: new Date().toISOString().split('T')[0] });
+      tokens.push({ name: 'tenant_id', value: tenant_id });
 
-      logger.info('Generated PandaDoc tokens', { requestId }, {
-        tokenCount: Object.keys(tokens).length,
-        sampleTokens: Object.keys(tokens).slice(0, 5)
+      logger.info('Generated PandaDoc tokens from field mappings', { requestId }, {
+        tokenCount: tokens.length,
+        mappedFields: fieldMappings.filter(m => m.isActive).length,
+        sampleTokens: tokens.slice(0, 5).map(t => t.name)
       });
 
       // 4. Get recipients from SugarCRM record or use defaults

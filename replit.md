@@ -252,12 +252,19 @@ The application is designed to be deployed as a single service that handles both
 - **Request Logging**: All API interactions logged with unique request IDs for troubleshooting
 - **Document Tracking**: Created documents stored in database with links to original SugarCRM records
 
-## Recent Updates - Direct Document Creation API Finalized (January 2025)
+## Recent Updates - Field Mapping Integration Enhancement (January 2025)
 
-### Complete `/create-doc` Endpoint Implementation
+### Integrated Field Mapping System with `/create-doc` Endpoint
+- **Pre-configured Field Mapping Integration**: Updated `/create-doc` endpoint to use existing tenant-specific field mappings from the Field Mapping page instead of generic token generation
+- **Dynamic Value Resolution**: System now loads pre-defined mappings that link SugarCRM fields to PandaDoc tokens and resolves values dynamically from SugarCRM records
+- **Multi-Module Support**: Field mappings support multiple SugarCRM module types (Opportunities, Contacts, Accounts) with proper tenant isolation
+- **Token Format Compliance**: PandaDoc tokens properly formatted as `{"name": "token_name", "value": "mapped_value"}` using configured field mappings
+- **UI Integration**: Document template configuration now references existing Field Mapping page instead of duplicating functionality
+- **Enterprise Logging**: Enhanced logging shows field mapping retrieval, token generation from mappings, and value resolution process
+
+### Complete `/create-doc` Endpoint Implementation (Previous)
 - **Production-Ready Integration**: Fully functional POST `/create-doc` endpoint accepting record_id, module, tenant_id, and template_id parameters
 - **Real-Time SugarCRM Integration**: Live data fetching from SugarCRM REST API with proper authentication and error handling
-- **Dynamic Token Generation**: Automatic conversion of SugarCRM field names/values to PandaDoc tokens ({{field_name}} format)
 - **Comprehensive Error Handling**: Proper HTTP status codes, detailed error messages, and automatic retry queue integration
 - **Enterprise Logging**: Complete request/response logging with sensitive data redaction and unique request IDs
 - **Multi-Tenant Support**: Full tenant isolation with secure credential management and configuration

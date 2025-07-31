@@ -544,117 +544,22 @@ export default function DocumentTemplatesPage() {
                 </div>
               </div>
 
-              {/* Token Mappings Configuration */}
+              {/* Field Mapping Reference */}
               <div className="space-y-2">
-                <Label>Token Mappings</Label>
-                <p className="text-sm text-muted-foreground">
-                  Map SugarCRM fields to PandaDoc tokens for automatic population.
-                </p>
-                <div className="space-y-2">
-                  {(formData.tokenMappings as any[])?.map((mapping: any, index: number) => (
-                    <div key={index} className="flex items-center space-x-2 p-3 border rounded">
-                      <Input
-                        placeholder="SugarCRM Field (e.g., name)"
-                        value={mapping.sugarField || ""}
-                        onChange={(e) => {
-                          const newMappings = [...(formData.tokenMappings as any[] || [])];
-                          newMappings[index] = { ...mapping, sugarField: e.target.value };
-                          setFormData(prev => ({ ...prev, tokenMappings: newMappings }));
-                        }}
-                        className="flex-1"
-                      />
-                      <Input
-                        placeholder="PandaDoc Token (e.g., {{contact_name}})"
-                        value={mapping.pandaDocToken || ""}
-                        onChange={(e) => {
-                          const newMappings = [...(formData.tokenMappings as any[] || [])];
-                          newMappings[index] = { ...mapping, pandaDocToken: e.target.value };
-                          setFormData(prev => ({ ...prev, tokenMappings: newMappings }));
-                        }}
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const newMappings = (formData.tokenMappings as any[] || []).filter((_, i) => i !== index);
-                          setFormData(prev => ({ ...prev, tokenMappings: newMappings }));
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const newMappings = [...(formData.tokenMappings as any[] || []), { sugarField: "", pandaDocToken: "" }];
-                      setFormData(prev => ({ ...prev, tokenMappings: newMappings }));
-                    }}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Token Mapping
-                  </Button>
-                </div>
-              </div>
-
-              {/* Field Mappings Configuration */}
-              <div className="space-y-2">
-                <Label>Field Mappings</Label>
-                <p className="text-sm text-muted-foreground">
-                  Configure additional field mappings for document creation.
-                </p>
-                <div className="space-y-2">
-                  {(formData.fieldMappings as any[])?.map((mapping: any, index: number) => (
-                    <div key={index} className="flex items-center space-x-2 p-3 border rounded">
-                      <Input
-                        placeholder="Source Field"
-                        value={mapping.sourceField || ""}
-                        onChange={(e) => {
-                          const newMappings = [...(formData.fieldMappings as any[] || [])];
-                          newMappings[index] = { ...mapping, sourceField: e.target.value };
-                          setFormData(prev => ({ ...prev, fieldMappings: newMappings }));
-                        }}
-                        className="flex-1"
-                      />
-                      <Input
-                        placeholder="Target Field"
-                        value={mapping.targetField || ""}
-                        onChange={(e) => {
-                          const newMappings = [...(formData.fieldMappings as any[] || [])];
-                          newMappings[index] = { ...mapping, targetField: e.target.value };
-                          setFormData(prev => ({ ...prev, fieldMappings: newMappings }));
-                        }}
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const newMappings = (formData.fieldMappings as any[] || []).filter((_, i) => i !== index);
-                          setFormData(prev => ({ ...prev, fieldMappings: newMappings }));
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const newMappings = [...(formData.fieldMappings as any[] || []), { sourceField: "", targetField: "" }];
-                      setFormData(prev => ({ ...prev, fieldMappings: newMappings }));
-                    }}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Field Mapping
-                  </Button>
+                <Label>SugarCRM to PandaDoc Token Mapping</Label>
+                <div className="p-4 border rounded-lg bg-muted/50">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Configure how SugarCRM fields map to PandaDoc tokens for this template. 
+                    Field mappings are managed separately and support multiple module types with dynamic value resolution.
+                  </p>
+                  <div className="flex items-center space-x-2">
+                    <Settings className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium">Manage field mappings in the Field Mapping section</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Field mappings automatically resolve values from SugarCRM records and related records, 
+                    then map them to PandaDoc tokens for document creation.
+                  </p>
                 </div>
               </div>
             </div>
