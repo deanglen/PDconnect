@@ -102,16 +102,8 @@ export class SugarCRMService {
 
     try {
       const response = await this.client.get(`/${module}/${recordId}`);
-      console.log(`DEBUG: SugarCRM response status: ${response.status}`);
-      console.log(`DEBUG: SugarCRM response headers:`, JSON.stringify(response.headers, null, 2));
-      console.log(`DEBUG: SugarCRM response data keys count: ${Object.keys(response.data).length}`);
-      console.log(`DEBUG: SugarCRM response data sample keys:`, Object.keys(response.data).slice(0, 10));
       return response.data;
     } catch (error: any) {
-      console.log(`DEBUG: SugarCRM API error:`, error.message);
-      console.log(`DEBUG: SugarCRM error response status:`, error.response?.status);
-      console.log(`DEBUG: SugarCRM error response data:`, error.response?.data);
-      
       if (error.response?.status === 401) {
         // Token expired, refresh and retry
         await this.refreshAccessToken();
