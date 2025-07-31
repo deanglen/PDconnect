@@ -57,12 +57,31 @@ export class WorkflowEngine {
 
       for (const workflow of workflows) {
         try {
-          const config = workflow.actions as WorkflowConfig;
+          console.log(`Processing workflow ${workflow.id}, active: ${workflow.isActive}`);
           
-          // Check conditions
-          if (this.evaluateConditions(config.conditions, payload)) {
-            // Execute actions
-            for (const action of config.actions) {
+          // Handle IF/THEN/ELSE structure or simple actions
+          const rules = workflow.ifThenElseRules as any;
+          if (rules && rules.if) {
+            console.log(`Evaluating IF conditions:`, rules.if);
+            const conditionsMet = this.evaluateIfConditions(rules.if, payload);
+            console.log(`Conditions met: ${conditionsMet}`);
+            
+            if (conditionsMet && rules.then && Array.isArray(rules.then)) {
+              console.log(`Executing THEN actions:`, rules.then);
+              for (const action of rules.then) {
+                await this.executeAction(action, payload);
+                actionsTriggered++;
+              }
+            } else if (!conditionsMet && rules.else && Array.isArray(rules.else)) {
+              console.log(`Executing ELSE actions:`, rules.else);
+              for (const action of rules.else) {
+                await this.executeAction(action, payload);
+                actionsTriggered++;
+              }
+            }
+          } else if (workflow.actions && Array.isArray(workflow.actions)) {
+            console.log(`Executing simple actions:`, workflow.actions);
+            for (const action of workflow.actions) {
               await this.executeAction(action, payload);
               actionsTriggered++;
             }
@@ -91,7 +110,7 @@ export class WorkflowEngine {
     });
   }
 
-  private evaluateConditions(conditions: WorkflowCondition[], payload: any): boolean {
+  private evaluateIfConditions(conditions: any[], payload: any): boolean {
     if (!conditions || conditions.length === 0) {
       return true;
     }
