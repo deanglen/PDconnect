@@ -1,18 +1,22 @@
 import { 
   users, tenants, fieldMappings, workflows, webhookLogs, documents, documentTemplates,
-  type User, type InsertUser, type Tenant, type InsertTenant,
+  type User, type UpsertUser, type InsertUser, type Tenant, type InsertTenant,
   type FieldMapping, type InsertFieldMapping, type Workflow, type InsertWorkflow,
   type WebhookLog, type InsertWebhookLog, type Document, type InsertDocument,
   type DocumentTemplate, type InsertDocumentTemplate
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  getUserCount(): Promise<number>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  updateUserRole(userId: string, role: string, tenantAccess?: string[]): Promise<User>;
+  getAllUsers(): Promise<User[]>;
 
   // Tenant methods
   getTenants(): Promise<Tenant[]>;
@@ -61,13 +65,50 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    const [user] = await db.select().from(users).where(eq(users.email, username));
     return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db.insert(users).values(insertUser).returning();
     return user;
+  }
+
+  async getUserCount(): Promise<number> {
+    const result = await db.select({ count: sql`count(*)` }).from(users);
+    return Number(result[0].count);
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  async updateUserRole(userId: string, role: string, tenantAccess?: string[]): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        role, 
+        tenantAccess: tenantAccess || [],
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users).orderBy(users.createdAt);
   }
 
   async getTenants(): Promise<Tenant[]> {
