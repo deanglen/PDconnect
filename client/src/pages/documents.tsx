@@ -239,12 +239,12 @@ export default function PDRequestsPage() {
           </div>
           <Button onClick={openCreateForm} disabled={!selectedTenant}>
             <Plus className="h-4 w-4 mr-2" />
-            Create Template
+            Create Request
           </Button>
         </div>
 
         <p className="text-muted-foreground">
-          Manage reusable document creation templates for automatic PandaDoc document generation from SugarCRM records.
+          Create requests for automatic PandaDoc document generation from SugarCRM records.
         </p>
       </div>
 
@@ -295,7 +295,7 @@ export default function PDRequestsPage() {
       {selectedTenant && (
         <Card>
           <CardHeader>
-            <CardTitle>Document Templates</CardTitle>
+            <CardTitle>Create Requests</CardTitle>
           </CardHeader>
           <CardContent>
             {templatesLoading ? (
@@ -395,19 +395,19 @@ export default function PDRequestsPage() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingTemplate ? "Edit PD Request Template" : "Create PD Request Template"}
+              {editingTemplate ? "Edit Request Template" : "Create Request Template"}
             </DialogTitle>
           </DialogHeader>
           
           <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto max-h-[calc(90vh-8rem)] pr-2">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Template Name *</Label>
+                <Label htmlFor="name">Request Name *</Label>
                 <Input
                   id="name"
                   value={formData.name || ""}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g., Contract Template"
+                  placeholder="e.g., Contract Request"
                   required
                 />
               </div>
@@ -473,7 +473,7 @@ export default function PDRequestsPage() {
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="isDefault">Default Template</Label>
+                  <Label htmlFor="isDefault">Default Request</Label>
                   <p className="text-sm text-muted-foreground">
                     Use as default for this module
                   </p>
@@ -549,7 +549,7 @@ export default function PDRequestsPage() {
                 <Label>SugarCRM to PandaDoc Token Mapping</Label>
                 <div className="p-4 border rounded-lg bg-muted/50">
                   <p className="text-sm text-muted-foreground mb-3">
-                    Configure how SugarCRM fields map to PandaDoc tokens for this template. 
+                    Configure how SugarCRM fields map to PandaDoc tokens for this request. 
                     Field mappings are managed separately and support multiple module types with dynamic value resolution.
                   </p>
                   <div className="flex items-center space-x-2">
@@ -566,7 +566,7 @@ export default function PDRequestsPage() {
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label htmlFor="isActive">Active Template</Label>
+                <Label htmlFor="isActive">Active Request</Label>
                 <p className="text-sm text-muted-foreground">
                   Available for document creation
                 </p>
@@ -594,7 +594,7 @@ export default function PDRequestsPage() {
                 type="submit" 
                 disabled={createTemplateMutation.isPending || updateTemplateMutation.isPending}
               >
-                {editingTemplate ? "Update Template" : "Create Template"}
+                {editingTemplate ? "Update Request" : "Create Request"}
               </Button>
             </div>
           </form>
