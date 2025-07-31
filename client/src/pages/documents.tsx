@@ -15,7 +15,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { FileText, Plus, Edit, Trash2, Copy, Settings } from "lucide-react";
 import type { Tenant, DocumentTemplate, InsertDocumentTemplate } from "@shared/schema";
 
-export default function DocumentTemplatesPage() {
+export default function PDRequestsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -235,7 +235,7 @@ export default function DocumentTemplatesPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <FileText className="h-6 w-6 text-blue-600" />
-            <h1 className="text-2xl font-bold">Document Templates</h1>
+            <h1 className="text-2xl font-bold">PD Requests</h1>
           </div>
           <Button onClick={openCreateForm} disabled={!selectedTenant}>
             <Plus className="h-4 w-4 mr-2" />
@@ -395,7 +395,7 @@ export default function DocumentTemplatesPage() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingTemplate ? "Edit Template" : "Create Document Template"}
+              {editingTemplate ? "Edit PD Request Template" : "Create PD Request Template"}
             </DialogTitle>
           </DialogHeader>
           

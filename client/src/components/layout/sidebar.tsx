@@ -9,7 +9,7 @@ const navigation = [
   { name: 'Tenant Config', href: '/tenants', icon: 'fas fa-building' },
   { name: 'Field Mappings', href: '/mappings', icon: 'fas fa-arrows-alt-h' },
   { name: 'Workflows', href: '/workflows', icon: 'fas fa-project-diagram' },
-  { name: 'Documents', href: '/documents', icon: 'fas fa-file-alt' },
+  { name: 'PD Requests', href: '/documents', icon: 'fas fa-file-alt' },
   { name: 'Token Explorer', href: '/tokens', icon: 'fas fa-tags' },
   { name: 'Webhook Logs', href: '/webhooks', icon: 'fas fa-exchange-alt' },
 ];
