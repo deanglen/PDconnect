@@ -5,7 +5,7 @@ import { SugarCRMService } from "./services/sugarcrm";
 import { PandaDocService, type SugarCRMDocumentRequest } from "./services/pandadoc";
 import { WorkflowEngine } from "./services/workflow";
 import { WebhookVerifier } from "./utils/webhook-verifier";
-import { insertTenantSchema, insertFieldMappingSchema, insertWorkflowSchema, insertDocumentSchema, insertDocumentTemplateSchema } from "@shared/schema";
+import { insertTenantSchema, insertFieldMappingSchema, insertWorkflowSchema, insertDocumentSchema, insertDocumentTemplateSchema, insertUserSchema, updateUserSchema } from "@shared/schema";
 import { createAuthMiddleware, getAuthStatus } from "./middleware/multi-auth";
 import { z } from "zod";
 import { logger } from "./utils/logger";
@@ -429,6 +429,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
       timestamp: new Date().toISOString(),
       auth: getAuthStatus()
     });
+  });
+
+  // User Management Endpoints
+  // Get all users
+  app.get("/api/users", async (req: Request, res: Response) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Create new user
+  app.post("/api/users", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertUserSchema.parse(req.body);
+      
+      // Check if email already exists
+      const existingUser = await storage.getUserByEmail(validatedData.email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User with this email already exists" });
+      }
+
+      const user = await storage.createUser(validatedData);
+      res.status(201).json(user);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create user" });
+    }
+  });
+
+  // Update user
+  app.put("/api/users/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const validatedData = updateUserSchema.parse(req.body);
+      
+      // Check if user exists
+      const existingUser = await storage.getUser(id);
+      if (!existingUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const user = await storage.updateUser(id, validatedData);
+      res.json(user);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // Delete user
+  app.delete("/api/users/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      
+      const existingUser = await storage.getUser(id);
+      if (!existingUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      await storage.deleteUser(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // Generate new API key for user
+  app.post("/api/users/:id/api-key", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      
+      const existingUser = await storage.getUser(id);
+      if (!existingUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const apiKey = await storage.generateApiKey(id);
+      res.json({ apiKey, message: "New API key generated successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to generate API key" });
+    }
+  });
+
+  // Get user profile (for authenticated users)
+  app.get("/api/users/me", async (req: Request, res: Response) => {
+    try {
+      // Extract API key from Authorization header
+      const authHeader = req.headers.authorization;
+      let apiKey = "";
+      
+      if (authHeader?.startsWith("Bearer ")) {
+        apiKey = authHeader.substring(7);
+      } else if (authHeader) {
+        apiKey = authHeader;
+      }
+
+      if (!apiKey) {
+        return res.status(401).json({ message: "API key required" });
+      }
+
+      const user = await storage.validateApiKey(apiKey);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid API key" });
+      }
+
+      res.json(user);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user profile" });
+    }
   });
 
   // Tenants (protected by auth middleware)

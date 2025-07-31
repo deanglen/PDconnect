@@ -10,8 +10,11 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  role: text("role").default("user"), // "admin", "user", "tenant_admin"
+  role: text("role").default("viewer"), // "super_admin", "admin", "viewer"  
+  isActive: boolean("is_active").default(true),
   tenantAccess: jsonb("tenant_access").$type<string[]>().default([]), // Array of tenant IDs user can access
+  apiKey: varchar("api_key").unique(), // Personal API key for this user
+  lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -156,11 +159,15 @@ export const documentTemplatesRelations = relations(documentTemplates, ({ one })
   }),
 }));
 
-// Insert schemas
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
+// Insert schemas for user management
+export const insertUserSchema = createInsertSchema(users).extend({
+  email: z.string().email("Invalid email address"),
+  role: z.enum(["super_admin", "admin", "viewer"]).default("viewer"),
+  isActive: z.boolean().default(true),
+  tenantAccess: z.array(z.string()).default([]),
+}).omit({ id: true, apiKey: true, lastLoginAt: true, createdAt: true, updatedAt: true });
+
+export const updateUserSchema = insertUserSchema.partial();
 
 export const insertTenantSchema = createInsertSchema(tenants).omit({
   id: true,
@@ -196,8 +203,9 @@ export const insertDocumentTemplateSchema = createInsertSchema(documentTemplates
   updatedAt: true,
 });
 
-// Types
+// User management types
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type UpdateUser = z.infer<typeof updateUserSchema>;
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type InsertTenant = z.infer<typeof insertTenantSchema>;

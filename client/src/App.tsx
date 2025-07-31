@@ -11,6 +11,7 @@ import Workflows from "@/pages/workflows";
 import Tokens from "@/pages/tokens";
 import Webhooks from "@/pages/webhooks";
 import Documents from "@/pages/documents";
+import UserManagement from "@/pages/user-management";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/tokens" component={Tokens} />
       <Route path="/webhooks" component={Webhooks} />
       <Route path="/documents" component={Documents} />
+      <Route path="/users" component={UserManagement} />
       <Route component={NotFound} />
     </Switch>
   );

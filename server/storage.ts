@@ -9,14 +9,16 @@ import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
-  // User methods
+  // User methods  
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  getUserCount(): Promise<number>;
-  upsertUser(user: UpsertUser): Promise<User>;
-  updateUserRole(userId: string, role: string, tenantAccess?: string[]): Promise<User>;
+  updateUser(id: string, user: Partial<InsertUser>): Promise<User>;
+  deleteUser(id: string): Promise<void>;
+  generateApiKey(userId: string): Promise<string>;
+  validateApiKey(apiKey: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
+  upsertUser(user: UpsertUser): Promise<User>;
 
   // Tenant methods
   getTenants(): Promise<Tenant[]>;
@@ -64,19 +66,72 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, username));
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
     return user || undefined;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
+  async createUser(userData: InsertUser): Promise<User> {
+    try {
+      // Generate unique API key for new user
+      const apiKey = `user_${Date.now()}_${Math.random().toString(36).substr(2, 12)}`;
+      
+      const [user] = await db.insert(users).values({
+        ...userData,
+        apiKey,
+      }).returning();
+      return user;
+    } catch (error) {
+      console.error("Error creating user:", error);
+      throw error;
+    }
+  }
+
+  async updateUser(id: string, userData: Partial<InsertUser>): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({
+        ...userData,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, id))
+      .returning();
     return user;
   }
 
-  async getUserCount(): Promise<number> {
-    const result = await db.select({ count: sql`count(*)` }).from(users);
-    return Number(result[0].count);
+  async deleteUser(id: string): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
+  }
+
+  async generateApiKey(userId: string): Promise<string> {
+    const apiKey = `user_${Date.now()}_${Math.random().toString(36).substr(2, 12)}`;
+    
+    await db
+      .update(users)
+      .set({ 
+        apiKey,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId));
+    
+    return apiKey;
+  }
+
+  async validateApiKey(apiKey: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(and(eq(users.apiKey, apiKey), eq(users.isActive, true)));
+    
+    if (user) {
+      // Update last login timestamp
+      await db
+        .update(users)
+        .set({ lastLoginAt: new Date() })
+        .where(eq(users.id, user.id));
+    }
+    
+    return user;
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
@@ -94,21 +149,15 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateUserRole(userId: string, role: string, tenantAccess?: string[]): Promise<User> {
-    const [user] = await db
-      .update(users)
-      .set({ 
-        role, 
-        tenantAccess: tenantAccess || [],
-        updatedAt: new Date() 
-      })
-      .where(eq(users.id, userId))
-      .returning();
-    return user;
-  }
+
 
   async getAllUsers(): Promise<User[]> {
-    return await db.select().from(users).orderBy(users.createdAt);
+    try {
+      return await db.select().from(users).orderBy(users.createdAt);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      throw error;
+    }
   }
 
   async getTenants(): Promise<Tenant[]> {

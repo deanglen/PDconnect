@@ -12,6 +12,7 @@ const navigation = [
   { name: 'PD Requests', href: '/documents', icon: 'fas fa-file-alt' },
   { name: 'Token Explorer', href: '/tokens', icon: 'fas fa-tags' },
   { name: 'Webhook Logs', href: '/webhooks', icon: 'fas fa-exchange-alt' },
+  { name: 'User Management', href: '/users', icon: 'fas fa-users' },
 ];
 
 export function Sidebar({ className = "" }: SidebarProps) {
