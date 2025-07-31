@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sugarcrm-pandadoc-middleware
+  labels:
+    app: middleware
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: middleware
+  template:
+    metadata:
+      labels:
+        app: middleware
+    spec:
+      containers:
+      - name: middleware
+        image: your-registry/sugarcrm-pandadoc-middleware:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: middleware-secrets
+              key: database-url
+        - name: AUTH_MODE
+          value: "token"
+        - name: ADMIN_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: middleware-secrets
+              key: admin-token
+        - name: NODE_ENV
+          value: "production"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: middleware-service
+spec:
+  selector:
+    app: middleware
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+  type: LoadBalancer
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: middleware-secrets
+type: Opaque
+data:
+  # Base64 encoded values - replace with your actual values
+  database-url: cG9zdGdyZXNxbDovL3VzZXI6cGFzc0Bob3N0OnBvcnQvZGI=
+  admin-token: eW91ci1zZWN1cmUtcHJvZHVjdGlvbi10b2tlbi0yMDI1

@@ -1,0 +1,70 @@
+# AWS SAM Template for Lambda deployment
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SugarCRM PandaDoc Middleware
+
+Parameters:
+  DatabaseUrl:
+    Type: String
+    Description: PostgreSQL connection string
+    NoEcho: true
+  
+  AdminToken:
+    Type: String
+    Description: Admin authentication token
+    NoEcho: true
+    Default: demo-admin-token-2025
+
+  AuthMode:
+    Type: String
+    Description: Authentication mode
+    Default: token
+    AllowedValues:
+      - token
+      - basic
+      - none
+
+Resources:
+  MiddlewareFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: index.handler
+      Runtime: nodejs20.x
+      MemorySize: 512
+      Timeout: 30
+      Environment:
+        Variables:
+          DATABASE_URL: !Ref DatabaseUrl
+          AUTH_MODE: !Ref AuthMode
+          ADMIN_TOKEN: !Ref AdminToken
+          NODE_ENV: production
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+        Root:
+          Type: Api
+          Properties:
+            Path: /
+            Method: ANY
+      
+  MiddlewareApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    
+  HealthCheck:
+    Description: Health check endpoint
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/health"

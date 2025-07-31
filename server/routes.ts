@@ -6,7 +6,7 @@ import { PandaDocService, type SugarCRMDocumentRequest } from "./services/pandad
 import { WorkflowEngine } from "./services/workflow";
 import { WebhookVerifier } from "./utils/webhook-verifier";
 import { insertTenantSchema, insertFieldMappingSchema, insertWorkflowSchema, insertDocumentSchema, insertDocumentTemplateSchema } from "@shared/schema";
-import { requireAdminAuth, requireBasicAuth } from "./middleware/simple-auth";
+import { createAuthMiddleware, getAuthStatus } from "./middleware/multi-auth";
 import { z } from "zod";
 import { logger } from "./utils/logger";
 import { retryQueue, initializeRetryQueue } from "./utils/retry-queue";
@@ -53,7 +53,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize retry queue processing
   initializeRetryQueue();
 
-  // Basic admin authentication for production
+  // Multi-cloud authentication middleware
+  const authMiddleware = createAuthMiddleware();
+  
+  // Apply authentication to all routes (public endpoints are automatically excluded)
+  app.use(authMiddleware);
 
   // Request logging middleware
   app.use((req: Request, res: Response, next) => {
@@ -101,8 +105,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       timestamp: new Date().toISOString(),
       version: process.env.npm_package_version || "1.0.0",
       uptime: process.uptime(),
-      retryQueue: retryStats
+      retryQueue: retryStats,
+      auth: getAuthStatus()
     });
+  });
+
+  // Auth status endpoint  
+  app.get("/auth-status", (req: Request, res: Response) => {
+    res.json(getAuthStatus());
   });
 
   // Dashboard stats endpoint
@@ -412,17 +422,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Tenant management endpoints
-  // Admin dashboard route (optional basic auth for web interface)
-  app.get("/admin", requireBasicAuth, (req: Request, res: Response) => {
+  // Admin dashboard route
+  app.get("/admin", (req: Request, res: Response) => {
     res.json({ 
       message: "Admin access granted", 
-      user: "admin",
-      timestamp: new Date().toISOString() 
+      timestamp: new Date().toISOString(),
+      auth: getAuthStatus()
     });
   });
 
-  // Tenants (protected with admin auth)
-  app.get("/api/tenants", requireAdminAuth, async (req: Request, res: Response) => {
+  // Tenants (protected by auth middleware)
+  app.get("/api/tenants", async (req: Request, res: Response) => {
     try {
       const tenants = await storage.getTenants();
       res.json(tenants);
@@ -431,7 +441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/tenants", requireAdminAuth, async (req: Request, res: Response) => {
+  app.post("/api/tenants", async (req: Request, res: Response) => {
     try {
       const validatedData = insertTenantSchema.parse(req.body);
       const tenant = await storage.createTenant(validatedData);
@@ -444,7 +454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/tenants/:id", requireAdminAuth, async (req: Request, res: Response) => {
+  app.put("/api/tenants/:id", async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const validatedData = insertTenantSchema.partial().parse(req.body);
@@ -458,7 +468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/tenants/:id", requireAdminAuth, async (req: Request, res: Response) => {
+  app.delete("/api/tenants/:id", async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       await storage.deleteTenant(id);

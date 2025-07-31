@@ -1,0 +1,48 @@
+# Azure Container Instances deployment
+apiVersion: 2019-12-01
+location: eastus
+name: sugarcrm-pandadoc-middleware
+properties:
+  containers:
+  - name: middleware
+    properties:
+      image: your-registry/sugarcrm-pandadoc-middleware:latest
+      ports:
+      - port: 5000
+        protocol: TCP
+      environmentVariables:
+      - name: DATABASE_URL
+        secureValue: postgresql://user:pass@host:5432/db
+      - name: AUTH_MODE
+        value: token
+      - name: ADMIN_TOKEN
+        secureValue: your-secure-production-token-2025
+      - name: NODE_ENV
+        value: production
+      resources:
+        requests:
+          cpu: 0.5
+          memoryInGB: 1
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: 5000
+        initialDelaySeconds: 30
+        periodSeconds: 30
+      readinessProbe:
+        httpGet:
+          path: /health
+          port: 5000
+        initialDelaySeconds: 5
+        periodSeconds: 10
+  osType: Linux
+  restartPolicy: Always
+  ipAddress:
+    type: Public
+    ports:
+    - protocol: TCP
+      port: 5000
+    dnsNameLabel: sugarcrm-pandadoc-middleware
+tags:
+  environment: production
+  application: middleware

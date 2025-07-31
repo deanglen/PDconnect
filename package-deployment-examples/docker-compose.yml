@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  middleware:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      # Database configuration
+      DATABASE_URL: postgresql://middleware:secure_password@postgres:5432/middleware_db
+      
+      # Authentication configuration (choose one)
+      AUTH_MODE: token
+      ADMIN_TOKEN: your-secure-production-token-2025
+      
+      # Alternative: Basic Auth
+      # AUTH_MODE: basic
+      # ADMIN_USERNAME: admin
+      # ADMIN_PASSWORD: your-secure-password
+      
+      # Development mode (no auth)
+      # AUTH_MODE: none
+      
+      # Production settings
+      NODE_ENV: production
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: middleware_db
+      POSTGRES_USER: middleware
+      POSTGRES_PASSWORD: secure_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
