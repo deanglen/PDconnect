@@ -41,7 +41,7 @@ The application supports multi-tenancy, providing isolated configurations for ea
 - **Workflow System**: Supports advanced IF/THEN/ELSE logic, visual and JSON-based configuration, and multiple actions per event.
 - **API Compliance**: Upgraded to SugarCRM REST API v11 with OAuth2 and custom platform authentication. PandaDoc webhooks use HMAC-SHA256 signature verification.
 - **Direct Document Creation API**: A `/create-doc` endpoint allows on-demand document creation, fetching live SugarCRM data, generating dynamic tokens, and handling recipient mapping.
-- **User Management**: Comprehensive role-based access control (super_admin, admin, viewer) with personal API keys, CRUD operations, and tenant-specific access.
+- **User Management**: Comprehensive role-based access control (super_admin, admin, viewer) with personal API keys, CRUD operations, tenant-specific access, and professional login interface with secure authentication.
 - **Operational Excellence**: Includes a `/health` endpoint, enhanced logging with sensitive data redaction, and an automatic retry queue with exponential backoff for failed operations.
 - **Performance Optimization**: Client-side optimizations for field mapping UI and JSON view/edit capabilities.
 

@@ -57,7 +57,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const authMiddleware = createAuthMiddleware();
   
   // Apply authentication to API routes only, not frontend routes
-  app.use('/api', authMiddleware);
+  // BUT exclude /api/users/me which handles its own authentication
+  app.use('/api', (req, res, next) => {
+    if (req.path === '/users/me') {
+      return next(); // Skip auth middleware for user profile endpoint
+    }
+    return authMiddleware(req, res, next);
+  });
 
   // Request logging middleware
   app.use((req: Request, res: Response, next) => {
