@@ -42,9 +42,13 @@ export interface IStorage {
   getWorkflowsByEvent(tenantId: string, event: string): Promise<Workflow[]>;
 
   // Webhook log methods
-  getWebhookLogs(tenantId?: string): Promise<WebhookLog[]>;
+  getWebhookLogs(tenantId?: string, status?: string, eventType?: string): Promise<WebhookLog[]>;
+  getWebhookLogById(id: string): Promise<WebhookLog | undefined>;
+  getWebhookLogByEventId(eventId: string): Promise<WebhookLog | undefined>;
   createWebhookLog(log: InsertWebhookLog): Promise<WebhookLog>;
   updateWebhookLog(id: string, log: Partial<InsertWebhookLog>): Promise<WebhookLog>;
+  getFailedWebhookLogs(tenantId?: string): Promise<WebhookLog[]>;
+  getRetryableWebhookLogs(): Promise<WebhookLog[]>;
 
   // Document methods
   getDocuments(tenantId: string): Promise<Document[]>;
@@ -253,12 +257,29 @@ export class DatabaseStorage implements IStorage {
       ));
   }
 
-  async getWebhookLogs(tenantId?: string): Promise<WebhookLog[]> {
-    const query = db.select().from(webhookLogs);
-    if (tenantId) {
-      return await query.where(eq(webhookLogs.tenantId, tenantId)).orderBy(desc(webhookLogs.createdAt));
+  async getWebhookLogs(tenantId?: string, status?: string, eventType?: string): Promise<WebhookLog[]> {
+    let query = db.select().from(webhookLogs);
+    
+    const conditions = [];
+    if (tenantId) conditions.push(eq(webhookLogs.tenantId, tenantId));
+    if (status) conditions.push(eq(webhookLogs.status, status));
+    if (eventType) conditions.push(eq(webhookLogs.eventType, eventType));
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
     }
-    return await query.orderBy(desc(webhookLogs.createdAt));
+    
+    return await query.orderBy(desc(webhookLogs.receivedAt));
+  }
+
+  async getWebhookLogById(id: string): Promise<WebhookLog | undefined> {
+    const [log] = await db.select().from(webhookLogs).where(eq(webhookLogs.id, id));
+    return log || undefined;
+  }
+
+  async getWebhookLogByEventId(eventId: string): Promise<WebhookLog | undefined> {
+    const [log] = await db.select().from(webhookLogs).where(eq(webhookLogs.eventId, eventId));
+    return log || undefined;
   }
 
   async createWebhookLog(log: InsertWebhookLog): Promise<WebhookLog> {
@@ -269,10 +290,34 @@ export class DatabaseStorage implements IStorage {
   async updateWebhookLog(id: string, log: Partial<InsertWebhookLog>): Promise<WebhookLog> {
     const [updatedLog] = await db
       .update(webhookLogs)
-      .set(log)
+      .set({ ...log, updatedAt: new Date() })
       .where(eq(webhookLogs.id, id))
       .returning();
     return updatedLog;
+  }
+
+  async getFailedWebhookLogs(tenantId?: string): Promise<WebhookLog[]> {
+    let query = db.select().from(webhookLogs)
+      .where(eq(webhookLogs.status, 'failed'));
+    
+    if (tenantId) {
+      query = query.where(and(
+        eq(webhookLogs.status, 'failed'),
+        eq(webhookLogs.tenantId, tenantId)
+      ));
+    }
+    
+    return await query.orderBy(desc(webhookLogs.receivedAt));
+  }
+
+  async getRetryableWebhookLogs(): Promise<WebhookLog[]> {
+    const now = new Date();
+    return await db.select().from(webhookLogs)
+      .where(and(
+        eq(webhookLogs.status, 'failed'),
+        sql`${webhookLogs.nextRetryAt} <= ${now}`
+      ))
+      .orderBy(webhookLogs.nextRetryAt);
   }
 
   async getDocuments(tenantId: string): Promise<Document[]> {

@@ -67,16 +67,23 @@ export const workflows = pgTable("workflows", {
 
 export const webhookLogs = pgTable("webhook_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  eventId: text("event_id").unique(), // PandaDoc event ID for deduplication
   tenantId: varchar("tenant_id").references(() => tenants.id, { onDelete: "set null" }),
   eventType: text("event_type").notNull(),
   documentId: text("document_id"),
   documentName: text("document_name"),
   payload: jsonb("payload").notNull(),
-  status: text("status").notNull(), // "processed", "failed", "pending"
+  status: text("status").notNull().default("pending"), // "pending", "processing", "success", "failed", "permanently_failed"
   actionsTriggered: integer("actions_triggered").default(0),
   errorMessage: text("error_message"),
   processingTimeMs: integer("processing_time_ms"),
+  retryCount: integer("retry_count").default(0),
+  maxRetries: integer("max_retries").default(3),
+  nextRetryAt: timestamp("next_retry_at"),
+  receivedAt: timestamp("received_at").defaultNow(),
+  processedAt: timestamp("processed_at"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const documents = pgTable("documents", {
@@ -189,6 +196,12 @@ export const insertWorkflowSchema = createInsertSchema(workflows).omit({
 export const insertWebhookLogSchema = createInsertSchema(webhookLogs).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
+  receivedAt: true,
+}).extend({
+  status: z.enum(["pending", "processing", "success", "failed", "permanently_failed"]).default("pending"),
+  retryCount: z.number().default(0),
+  maxRetries: z.number().default(3),
 });
 
 export const insertDocumentSchema = createInsertSchema(documents).omit({
