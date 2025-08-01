@@ -468,108 +468,126 @@ function WorkflowEditor({
                   </Button>
                 </div>
             
-            {workflowData.ifThenElseRules.if.map((condition: WorkflowCondition, index: number) => (
-              <div key={index} className="grid grid-cols-5 gap-2 mb-2">
-                <Select
-                  value={condition.field}
-                  onValueChange={(value) => updateCondition(index, 'field', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select field" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-60 overflow-y-auto">
-                    <div className="p-2 text-xs font-semibold text-gray-500 border-b">Document Fields</div>
-                    {pandaDocFields.filter(f => f.value.startsWith('data.')).map(field => (
-                      <SelectItem key={field.value} value={field.value} className="text-xs">
-                        <div>
-                          <div className="font-medium">{field.label}</div>
-                          <div className="text-gray-500">{field.description}</div>
+                <div className="space-y-3">
+                  {workflowData.ifThenElseRules.if.length === 0 && (
+                    <div className="text-center py-8 text-gray-500 bg-gray-50 dark:bg-gray-900/20 rounded-lg border-2 border-dashed">
+                      <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No conditions set - workflow will run for all events</p>
+                      <p className="text-xs">Add conditions to filter when this workflow should execute</p>
+                    </div>
+                  )}
+                  
+                  {workflowData.ifThenElseRules.if.map((condition: WorkflowCondition, index: number) => (
+                    <div key={index} className="relative">
+                      {/* Show AND/OR connector only between conditions (not before first condition) */}
+                      {index > 0 && (
+                        <div className="flex items-center justify-center mb-2">
+                          <Select
+                            value={condition.logicalOperator || 'AND'}
+                            onValueChange={(value) => updateCondition(index, 'logicalOperator', value)}
+                          >
+                            <SelectTrigger className="w-20 h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="AND">AND</SelectItem>
+                              <SelectItem value="OR">OR</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
-                      </SelectItem>
-                    ))}
-                    <div className="p-2 text-xs font-semibold text-gray-500 border-b border-t">Event Fields</div>
-                    {pandaDocFields.filter(f => !f.value.startsWith('data.')).map(field => (
-                      <SelectItem key={field.value} value={field.value} className="text-xs">
-                        <div>
-                          <div className="font-medium">{field.label}</div>
-                          <div className="text-gray-500">{field.description}</div>
+                      )}
+                      
+                      <div className="grid grid-cols-12 gap-2 p-3 bg-gray-50 dark:bg-gray-900/20 rounded-lg border">
+                        <div className="col-span-4">
+                          <Select
+                            value={condition.field}
+                            onValueChange={(value) => updateCondition(index, 'field', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select field" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-60 overflow-y-auto">
+                              {pandaDocFields.map(field => (
+                                <SelectItem key={field.value} value={field.value}>
+                                  <div>
+                                    <div className="font-medium text-sm">{field.label}</div>
+                                    <div className="text-xs text-gray-500">{field.description}</div>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={condition.operator}
-                  onValueChange={(value) => updateCondition(index, 'operator', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {operators.map(op => (
-                      <SelectItem key={op.value} value={op.value}>
-                        {op.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {/* Smart value field with suggestions for document.status */}
-                {condition.field === 'data.status' ? (
-                  <Select
-                    value={condition.value}
-                    onValueChange={(value) => updateCondition(index, 'value', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {documentStatusValues.map(status => (
-                        <SelectItem key={status.value} value={status.value}>
-                          <div>
-                            <div className="font-medium">{status.label}</div>
-                            <div className="text-xs text-gray-500">{status.description}</div>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    placeholder="Value"
-                    value={condition.value}
-                    onChange={(e) => updateCondition(index, 'value', e.target.value)}
-                  />
-                )}
-                <Select
-                  value={condition.logicalOperator || 'AND'}
-                  onValueChange={(value) => updateCondition(index, 'logicalOperator', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="AND">AND</SelectItem>
-                    <SelectItem value="OR">OR</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setWorkflowData(prev => ({
-                      ...prev,
-                      ifThenElseRules: {
-                        ...prev.ifThenElseRules,
-                        if: prev.ifThenElseRules.if.filter((_, i) => i !== index)
-                      }
-                    }));
-                  }}
-                >
-                  <i className="fas fa-trash"></i>
-                </Button>
-              </div>
-            ))}
+                        
+                        <div className="col-span-3">
+                          <Select
+                            value={condition.operator}
+                            onValueChange={(value) => updateCondition(index, 'operator', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Operator" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {operators.map(op => (
+                                <SelectItem key={op.value} value={op.value}>
+                                  {op.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="col-span-4">
+                          {condition.field === 'data.status' ? (
+                            <Select
+                              value={condition.value}
+                              onValueChange={(value) => updateCondition(index, 'value', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {documentStatusValues.map(status => (
+                                  <SelectItem key={status.value} value={status.value}>
+                                    <div>
+                                      <div className="font-medium">{status.label}</div>
+                                      <div className="text-xs text-gray-500">{status.description}</div>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Input
+                              placeholder="Value"
+                              value={condition.value}
+                              onChange={(e) => updateCondition(index, 'value', e.target.value)}
+                            />
+                          )}
+                        </div>
+                        
+                        <div className="col-span-1 flex justify-center">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setWorkflowData(prev => ({
+                                ...prev,
+                                ifThenElseRules: {
+                                  ...prev.ifThenElseRules,
+                                  if: prev.ifThenElseRules.if.filter((_: WorkflowCondition, i: number) => i !== index)
+                                }
+                              }));
+                            }}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
           </div>
 
           {/* THEN Actions */}
@@ -648,8 +666,8 @@ function WorkflowEditor({
                     />
                     <Input
                       placeholder="Related Module (optional)"
-                      value={action.parent_type || ''}
-                      onChange={(e) => updateAction('then', index, 'parent_type', e.target.value)}
+                      value={action.module || ''}
+                      onChange={(e) => updateAction('then', index, 'module', e.target.value)}
                     />
                   </>
                 )}
@@ -829,8 +847,8 @@ function WorkflowEditor({
                     />
                     <Input
                       placeholder="Related Module (optional)"
-                      value={action.parent_type || ''}
-                      onChange={(e) => updateAction('else', index, 'parent_type', e.target.value)}
+                      value={action.module || ''}
+                      onChange={(e) => updateAction('else', index, 'module', e.target.value)}
                     />
                   </>
                 )}
