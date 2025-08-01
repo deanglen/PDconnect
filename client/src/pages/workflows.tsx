@@ -950,7 +950,7 @@ export default function Workflows() {
 
   // Get webhook endpoint for selected tenant
   const webhookEndpoint = selectedTenant 
-    ? `${window.location.origin}/webhook?tenantId=${selectedTenant}`
+    ? `${window.location.origin}/api/webhook/pandadoc`
     : null;
 
   // Create workflow mutation
