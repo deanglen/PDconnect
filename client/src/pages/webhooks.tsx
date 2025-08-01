@@ -1,57 +1,118 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/topbar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { api } from "@/lib/api";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import { RefreshCw, Play, AlertTriangle, CheckCircle, Clock, XCircle, AlertCircle } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Webhooks() {
   const [selectedTenant, setSelectedTenant] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [eventFilter, setEventFilter] = useState("all");
+  const [selectedWebhook, setSelectedWebhook] = useState<any>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: tenants = [] } = useQuery({
     queryKey: ['/api/tenants'],
-    queryFn: () => api.getTenants(),
   });
 
   const { data: logs = [], refetch: refetchLogs } = useQuery({
-    queryKey: ['/api/webhook-logs', selectedTenant],
-    queryFn: () => api.getWebhookLogs(selectedTenant === "all" ? undefined : selectedTenant),
+    queryKey: ['/api/webhook-logs', selectedTenant, statusFilter, eventFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedTenant !== "all") params.append('tenantId', selectedTenant);
+      if (statusFilter !== "all") params.append('status', statusFilter);
+      if (eventFilter !== "all") params.append('eventType', eventFilter);
+      
+      return await apiRequest(`/api/webhook-logs?${params.toString()}`);
+    },
+    refetchInterval: 5000, // Refresh every 5 seconds
   });
 
-  const filteredLogs = logs.filter((log: any) => {
-    if (eventFilter === "all") return true;
-    return log.eventType === eventFilter;
+  const { data: stats = {} } = useQuery({
+    queryKey: ['/api/webhook-stats', selectedTenant],
+    queryFn: async () => {
+      const params = selectedTenant !== "all" ? `?tenantId=${selectedTenant}` : '';
+      return await apiRequest(`/api/webhook-stats${params}`);
+    },
+    refetchInterval: 10000, // Refresh every 10 seconds
+  });
+
+  const { data: failedLogs = [] } = useQuery({
+    queryKey: ['/api/webhook-logs/failed', selectedTenant],
+    queryFn: async () => {
+      const params = selectedTenant !== "all" ? `?tenantId=${selectedTenant}` : '';
+      return await apiRequest(`/api/webhook-logs/failed${params}`);
+    },
+  });
+
+  const retryMutation = useMutation({
+    mutationFn: async (webhookId: string) => {
+      return await apiRequest(`/api/webhook-logs/${webhookId}/retry`, 'POST');
+    },
+    onSuccess: (_, webhookId) => {
+      toast({
+        title: "Retry Initiated",
+        description: `Webhook ${webhookId} has been queued for retry processing.`,
+        variant: "default",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/webhook-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/webhook-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/webhook-logs/failed'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Retry Failed",
+        description: error.message || "Failed to initiate webhook retry",
+        variant: "destructive",
+      });
+    },
   });
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'success': return 'bg-green-100 text-green-800';
-      case 'failed': return 'bg-red-100 text-red-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'processing': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'success': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'permanently_failed': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      case 'failed': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'processing': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
     }
   };
 
-  const getEventColor = (eventType: string) => {
-    switch (eventType) {
-      case 'document_signed': return 'bg-green-100 text-green-800';
-      case 'document_viewed': return 'bg-blue-100 text-blue-800';
-      case 'document_created': return 'bg-purple-100 text-purple-800';
-      case 'document_declined': return 'bg-red-100 text-red-800';
-      case 'document_updated': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'success': return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'permanently_failed': return <XCircle className="w-4 h-4 text-red-600" />;
+      case 'failed': return <AlertTriangle className="w-4 h-4 text-red-600" />;
+      case 'pending': return <Clock className="w-4 h-4 text-yellow-600" />;
+      case 'processing': return <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />;
+      default: return <AlertCircle className="w-4 h-4 text-gray-600" />;
     }
+  };
+
+  const formatTimestamp = (timestamp: string) => {
+    return new Date(timestamp).toLocaleString();
+  };
+
+  const retryWebhook = async (webhookId: string) => {
+    await retryMutation.mutateAsync(webhookId);
   };
 
   return (
     <div className="flex-1 overflow-auto">
       <Topbar 
-        title="Webhook Logs" 
-        description="Monitor incoming PandaDoc webhook events and processing status"
+        title="Webhook Management" 
+        description="Monitor and manage PandaDoc webhook events with persistent storage and retry capabilities"
         actions={
           <div className="flex items-center space-x-3">
             <Select value={selectedTenant} onValueChange={setSelectedTenant}>
@@ -60,28 +121,15 @@ export default function Webhooks() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All tenants</SelectItem>
-                {tenants.map((tenant: any) => (
+                {Array.isArray(tenants) && tenants.map((tenant: any) => (
                   <SelectItem key={tenant.id} value={tenant.id}>
                     {tenant.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Select value={eventFilter} onValueChange={setEventFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Events</SelectItem>
-                <SelectItem value="document_signed">Document Signed</SelectItem>
-                <SelectItem value="document_viewed">Document Viewed</SelectItem>
-                <SelectItem value="document_created">Document Created</SelectItem>
-                <SelectItem value="document_declined">Document Declined</SelectItem>
-                <SelectItem value="document_updated">Document Updated</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={() => refetchLogs()} className="bg-primary text-white hover:bg-blue-700">
-              <i className="fas fa-sync mr-2"></i>
+            <Button variant="outline" onClick={() => refetchLogs()}>
+              <RefreshCw className="w-4 h-4 mr-2" />
               Refresh
             </Button>
           </div>
@@ -89,159 +137,373 @@ export default function Webhooks() {
       />
 
       <div className="p-6 space-y-6">
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Processing Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Events</p>
-                  <p className="text-2xl font-bold text-gray-900">{logs.length}</p>
-                </div>
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <i className="fas fa-exchange-alt text-blue-600"></i>
-                </div>
-              </div>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Total</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.total || 0}</div>
             </CardContent>
           </Card>
-          
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Successful</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {logs.filter((log: any) => log.status === 'success').length}
-                  </p>
-                </div>
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <i className="fas fa-check-circle text-green-600"></i>
-                </div>
-              </div>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-blue-600">Pending</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">{stats.pending || 0}</div>
             </CardContent>
           </Card>
-          
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Failed</p>
-                  <p className="text-2xl font-bold text-red-600">
-                    {logs.filter((log: any) => log.status === 'failed').length}
-                  </p>
-                </div>
-                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                  <i className="fas fa-exclamation-triangle text-red-600"></i>
-                </div>
-              </div>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-blue-600">Processing</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">{stats.processing || 0}</div>
             </CardContent>
           </Card>
-          
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Actions Triggered</p>
-                  <p className="text-2xl font-bold text-purple-600">
-                    {logs.reduce((sum: number, log: any) => sum + (log.actionsTriggered || 0), 0)}
-                  </p>
-                </div>
-                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <i className="fas fa-bolt text-purple-600"></i>
-                </div>
-              </div>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-green-600">Success</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{stats.success || 0}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-red-600">Failed</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">{stats.failed || 0}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-red-800">Permanent Failures</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-800">{stats.permanentlyFailed || 0}</div>
             </CardContent>
           </Card>
         </div>
 
-        <Card>
-          <CardContent>
-            {filteredLogs.length === 0 ? (
-              <div className="text-center py-8">
-                <i className="fas fa-exchange-alt text-4xl text-gray-300 mb-4"></i>
-                <p className="text-gray-500">No webhook events found</p>
-                <p className="text-sm text-gray-400">Webhook events will appear here when documents are interacted with</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tenant</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event Type</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Document</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Performance</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredLogs.map((log: any) => {
-                      const tenant = tenants.find((t: any) => t.id === log.tenantId);
-                      return (
-                        <tr key={log.id} className={log.status === 'failed' ? 'bg-red-50' : ''}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {new Date(log.createdAt).toLocaleString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-semibold mr-2">
-                                {tenant?.name?.substring(0, 2).toUpperCase() || 'UN'}
+        <Tabs defaultValue="all" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="all">All Webhooks</TabsTrigger>
+            <TabsTrigger value="failed">Failed & Retry ({Array.isArray(failedLogs) ? failedLogs.length : 0})</TabsTrigger>
+            <TabsTrigger value="endpoint">Endpoint Configuration</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="all" className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="success">Success</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                  <SelectItem value="permanently_failed">Permanently Failed</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={eventFilter} onValueChange={setEventFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="All events" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Events</SelectItem>
+                  <SelectItem value="document_signed">Document Signed</SelectItem>
+                  <SelectItem value="document_viewed">Document Viewed</SelectItem>
+                  <SelectItem value="document_created">Document Created</SelectItem>
+                  <SelectItem value="document_declined">Document Declined</SelectItem>
+                  <SelectItem value="document_updated">Document Updated</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Card>
+              <CardContent className="p-0">
+                {!Array.isArray(logs) || logs.length === 0 ? (
+                  <div className="text-center py-8">
+                    <RefreshCw className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">No webhook events found</p>
+                    <p className="text-sm text-gray-400">Webhook events will appear here when documents are interacted with</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Event Type</TableHead>
+                        <TableHead>Document</TableHead>
+                        <TableHead>Tenant</TableHead>
+                        <TableHead>Received</TableHead>
+                        <TableHead>Processed</TableHead>
+                        <TableHead>Retries</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {logs.map((log: any) => {
+                        const tenant = Array.isArray(tenants) ? tenants.find((t: any) => t.id === log.tenantId) : null;
+                        return (
+                          <TableRow key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                {getStatusIcon(log.status)}
+                                <Badge className={getStatusColor(log.status)}>
+                                  {log.status}
+                                </Badge>
                               </div>
-                              <span className="text-sm text-gray-900">{tenant?.name || 'Unknown Tenant'}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <Badge className={getEventColor(log.eventType)}>
-                              {log.eventType.replace('_', ' ')}
-                            </Badge>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                            </TableCell>
+                            <TableCell>{log.eventType}</TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">{log.documentName || 'N/A'}</div>
+                                {log.documentId && (
+                                  <div className="text-xs text-gray-500">{log.documentId}</div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>{tenant ? tenant.name : 'Unknown'}</TableCell>
+                            <TableCell className="text-sm">
+                              {formatTimestamp(log.receivedAt || log.createdAt)}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {log.processedAt ? (
+                                <div>
+                                  {formatTimestamp(log.processedAt)}
+                                  {log.processingTimeMs && (
+                                    <div className="text-xs text-gray-500">{log.processingTimeMs}ms</div>
+                                  )}
+                                </div>
+                              ) : (
+                                'Not processed'
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                {log.retryCount || 0} / {log.maxRetries || 3}
+                                {log.nextRetryAt && (
+                                  <div className="text-xs text-gray-500">
+                                    Next: {formatTimestamp(log.nextRetryAt)}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => setSelectedWebhook(log)}
+                                    >
+                                      View
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-4xl">
+                                    <DialogHeader>
+                                      <DialogTitle>Webhook Details - {log.eventType}</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-4">
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                          <p className="font-semibold">Status</p>
+                                          <Badge className={getStatusColor(log.status)}>{log.status}</Badge>
+                                        </div>
+                                        <div>
+                                          <p className="font-semibold">Event ID</p>
+                                          <p className="text-sm font-mono">{log.eventId || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                          <p className="font-semibold">Received At</p>
+                                          <p className="text-sm">{formatTimestamp(log.receivedAt || log.createdAt)}</p>
+                                        </div>
+                                        <div>
+                                          <p className="font-semibold">Actions Triggered</p>
+                                          <p className="text-sm">{log.actionsTriggered || 0}</p>
+                                        </div>
+                                      </div>
+                                      {log.errorMessage && (
+                                        <Alert>
+                                          <AlertTriangle className="h-4 w-4" />
+                                          <AlertDescription>{log.errorMessage}</AlertDescription>
+                                        </Alert>
+                                      )}
+                                      <div>
+                                        <p className="font-semibold mb-2">Payload</p>
+                                        <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded text-xs overflow-auto max-h-64">
+                                          {JSON.stringify(log.payload, null, 2)}
+                                        </pre>
+                                      </div>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                                {(log.status === 'failed' || log.status === 'permanently_failed') && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => retryWebhook(log.id)}
+                                    disabled={retryMutation.isPending}
+                                  >
+                                    <Play className="w-3 h-3 mr-1" />
+                                    Retry
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="failed" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                  <span>Failed Webhooks - Manual Retry Interface</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {!Array.isArray(failedLogs) || failedLogs.length === 0 ? (
+                  <div className="text-center py-8">
+                    <CheckCircle className="w-12 h-12 text-green-300 mx-auto mb-4" />
+                    <p className="text-gray-500">No failed webhooks</p>
+                    <p className="text-sm text-gray-400">All webhook events processed successfully</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Event Type</TableHead>
+                        <TableHead>Document</TableHead>
+                        <TableHead>Failed At</TableHead>
+                        <TableHead>Retry Count</TableHead>
+                        <TableHead>Error</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {failedLogs.map((log: any) => (
+                        <TableRow key={log.id}>
+                          <TableCell>{log.eventType}</TableCell>
+                          <TableCell>
                             <div>
-                              <p className="text-sm font-medium text-gray-900">
-                                {log.documentName || 'Unknown Document'}
-                              </p>
-                              <p className="text-sm text-gray-500 font-mono">
-                                {log.documentId || 'No ID'}
-                              </p>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex flex-col gap-1">
-                              <Badge className={getStatusColor(log.status)}>
-                                {log.status}
-                              </Badge>
-                              {log.errorMessage && (
-                                <p className="text-xs text-red-600 max-w-32 truncate" title={log.errorMessage}>
-                                  {log.errorMessage}
-                                </p>
+                              <div className="font-medium">{log.documentName || 'N/A'}</div>
+                              {log.documentId && (
+                                <div className="text-xs text-gray-500">{log.documentId}</div>
                               )}
                             </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            <div className="flex flex-col gap-1">
-                              <span>{log.actionsTriggered || 0} actions</span>
-                              {log.processingTimeMs && (
-                                <span className="text-xs text-gray-500">{log.processingTimeMs}ms</span>
-                              )}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {formatTimestamp(log.updatedAt)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-red-600">
+                              {log.retryCount} / {log.maxRetries}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-xs">
+                            <div className="text-sm text-red-600 truncate" title={log.errorMessage}>
+                              {log.errorMessage || 'Unknown error'}
                             </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <Button variant="ghost" size="sm" className="text-primary hover:text-blue-700">
-                              <i className="fas fa-eye mr-1"></i>
-                              View
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => retryWebhook(log.id)}
+                              disabled={retryMutation.isPending}
+                            >
+                              <Play className="w-3 h-3 mr-1" />
+                              Manual Retry
                             </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="endpoint" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Webhook Endpoint Configuration</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-2">
+                      <p className="font-semibold">PandaDoc Webhook Endpoint:</p>
+                      <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded border font-mono text-sm">
+                        {window.location.origin}/api/webhook/pandadoc
+                      </div>
+                      <p className="text-xs text-gray-600">
+                        Configure this URL in your PandaDoc account to receive webhook events.
+                        Ensure webhook shared secrets are configured in tenant settings for security.
+                      </p>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+
+                <div className="space-y-3">
+                  <h4 className="font-semibold">Webhook Features:</h4>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex items-center space-x-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>✅ Immediate persistence before processing</span>
+                    </li>
+                    <li className="flex items-center space-x-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>✅ Asynchronous background processing</span>
+                    </li>
+                    <li className="flex items-center space-x-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>✅ Exponential backoff retry with configurable limits</span>
+                    </li>
+                    <li className="flex items-center space-x-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>✅ HMAC-SHA256 signature verification</span>
+                    </li>
+                    <li className="flex items-center space-x-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>✅ Event deduplication using event_id</span>
+                    </li>
+                    <li className="flex items-center space-x-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>✅ Manual retry capability for failed events</span>
+                    </li>
+                    <li className="flex items-center space-x-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>✅ Comprehensive audit trail and filtering</span>
+                    </li>
+                    <li className="flex items-center space-x-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>✅ Multi-tenant isolation and processing</span>
+                    </li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

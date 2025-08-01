@@ -135,15 +135,47 @@ class Logger {
   /**
    * Log webhook events
    */
-  logWebhookEvent(eventType: string, tenantId: string, payload: any, processingResult?: any): void {
-    this.info('Webhook Event', {
-      tenantId,
-      requestId: `webhook-${Date.now()}`
-    }, {
-      eventType,
-      payload: this.redactSensitiveData(payload),
-      result: processingResult
-    });
+  logWebhookEvent(data: {
+    webhookId: string;
+    eventType: string;
+    tenantId: string;
+    status: string;
+    actionsTriggered?: number;
+    processingTimeMs?: number;
+    timestamp: string;
+  }): void {
+    this.info('Webhook Event', data);
+  }
+
+  /**
+   * Log webhook errors
+   */
+  logWebhookError(data: {
+    webhookId?: string;
+    tenantId: string;
+    eventType: string;
+    error: string;
+    stage: string;
+    retryCount?: number;
+    nextRetryAt?: string;
+    timestamp: string;
+  }): void {
+    this.error('Webhook Error', data);
+  }
+
+  /**
+   * Log workflow execution
+   */
+  logWorkflowExecution(data: {
+    workflowId: string;
+    workflowName: string;
+    webhookId: string;
+    actionsExecuted?: number;
+    status: string;
+    error?: string;
+    timestamp: string;
+  }): void {
+    this.info('Workflow Execution', data);
   }
 
   /**

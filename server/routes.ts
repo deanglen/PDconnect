@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { SugarCRMService } from "./services/sugarcrm";
 import { PandaDocService, type SugarCRMDocumentRequest } from "./services/pandadoc";
 import { WorkflowEngine } from "./services/workflow";
+import { WebhookProcessor } from "./services/webhook-processor";
 import { WebhookVerifier } from "./utils/webhook-verifier";
 import { insertTenantSchema, insertFieldMappingSchema, insertWorkflowSchema, insertDocumentSchema, insertDocumentTemplateSchema, insertUserSchema, updateUserSchema } from "@shared/schema";
 import { createAuthMiddleware, getAuthStatus } from "./middleware/multi-auth";
@@ -244,7 +245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PandaDoc webhook endpoint
+  // PandaDoc webhook endpoint - Enhanced with persistent storage and async processing
   app.post("/api/webhook/pandadoc", async (req: Request, res: Response) => {
     try {
       const signature = req.headers['x-pd-signature'] as string;
@@ -256,73 +257,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const eventType = req.body.event_type;
+      const eventId = req.body.event_id || req.body.data?.id || `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Check for duplicate webhook (using event_id for deduplication)
+      const existingWebhook = await storage.getWebhookLogByEventId(eventId);
+      if (existingWebhook) {
+        logger.logWebhookEvent({
+          webhookId: existingWebhook.id,
+          eventType,
+          tenantId: existingWebhook.tenantId || 'unknown',
+          status: 'duplicate_ignored',
+          timestamp: new Date().toISOString(),
+        });
+        return res.status(200).json({ message: "Webhook already processed", status: "duplicate" });
+      }
 
       // Find tenant from document metadata
       const tenantId = WebhookVerifier.extractTenantFromPayload(req.body);
       if (!tenantId) {
-        console.error('Unable to identify tenant from webhook payload');
+        logger.logWebhookError({
+          tenantId: 'unknown',
+          eventType,
+          error: 'Unable to identify tenant from webhook payload',
+          stage: 'tenant_identification',
+          timestamp: new Date().toISOString(),
+        });
         return res.status(400).json({ message: "Unable to identify tenant" });
       }
 
       const tenant = await storage.getTenant(tenantId);
       if (!tenant) {
-        console.error(`Tenant not found: ${tenantId}`);
+        logger.logWebhookError({
+          tenantId,
+          eventType,
+          error: `Tenant not found: ${tenantId}`,
+          stage: 'tenant_validation',
+          timestamp: new Date().toISOString(),
+        });
         return res.status(404).json({ message: "Tenant not found" });
       }
 
       // Verify webhook signature using tenant-specific secret
       if (tenant.webhookSharedSecret && signature) {
         if (!WebhookVerifier.verifyPandaDocSignature(payload, signature, tenant.webhookSharedSecret)) {
-          console.warn(`Webhook signature verification failed for tenant ${tenantId}`);
+          logger.logWebhookError({
+            tenantId,
+            eventType,
+            error: 'Invalid webhook signature',
+            stage: 'signature_verification',
+            timestamp: new Date().toISOString(),
+          });
           return res.status(401).json({ message: "Invalid webhook signature" });
         }
-        console.log(`Webhook signature verified for tenant ${tenantId}`);
-      } else if (signature) {
-        console.warn(`Webhook signature provided but no secret configured for tenant ${tenantId}`);
-      } else {
-        console.info(`No webhook signature verification for tenant ${tenantId} (no secret configured)`);
       }
 
-      // Initialize services and workflow engine
-      const sugarService = new SugarCRMService(tenant);
-      const pandaService = new PandaDocService(tenant);
-      const workflowEngine = new WorkflowEngine(tenant, sugarService, pandaService);
+      // PERSIST WEBHOOK IMMEDIATELY - This is the key requirement
+      const webhookLog = await WebhookProcessor.persistAndQueue(req.body, tenantId, eventId);
 
-      // Process webhook through workflow engine
-      try {
-        await workflowEngine.processWebhook(eventType, req.body);
-        
-        logger.logWebhookEvent(eventType, tenantId, req.body, { status: 'success' });
-        res.status(200).json({ message: "Webhook processed successfully" });
-      } catch (processingError) {
-        // Add to retry queue for failed webhook processing
-        const retryJobId = retryQueue.addJob(
-          tenantId,
-          'webhook_processing',
-          { eventType, data: req.body },
-          3 // max retries
-        );
-        
-        logger.logFailedOperation('webhook_processing', tenantId, processingError as Error);
-        logger.logWebhookEvent(eventType, tenantId, req.body, { 
-          status: 'failed', 
-          error: (processingError as Error).message,
-          retryJobId 
-        });
-        
-        // Still return success to PandaDoc to avoid retry storms
-        res.status(200).json({ 
-          message: "Webhook received, processing queued for retry",
-          retryJobId 
-        });
-      }
+      // Return 200 OK immediately after persistence (as required)
+      res.status(200).json({ 
+        message: "Webhook received and queued for processing", 
+        webhookId: webhookLog.id,
+        status: "queued" 
+      });
+
+      // Async processing is now handled by WebhookProcessor.persistAndQueue()
+      // which queues the webhook for background processing
 
     } catch (error) {
-      logger.error('Webhook endpoint error', {
-        tenantId: (req.body?.data?.metadata?.tenant_id as string) || 'unknown',
-        requestId: (req as any).requestId
-      }, error);
-      res.status(500).json({ message: "Failed to process webhook" });
+      logger.logWebhookError({
+        tenantId: 'unknown',
+        eventType: req.body?.event_type || 'unknown',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stage: 'webhook_reception',
+        timestamp: new Date().toISOString(),
+      });
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Enhanced webhook management endpoints for admin interface
+  app.get("/api/webhook-logs", async (req: Request, res: Response) => {
+    try {
+      const { tenantId, status, eventType } = req.query;
+      const logs = await storage.getWebhookLogs(
+        tenantId as string, 
+        status as string, 
+        eventType as string
+      );
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch webhook logs" });
+    }
+  });
+
+  // Manual retry endpoint for failed webhooks
+  app.post("/api/webhook-logs/:id/retry", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      await WebhookProcessor.manualRetry(id);
+      res.json({ message: "Webhook retry initiated", webhookId: id });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to retry webhook";
+      res.status(500).json({ message });
+    }
+  });
+
+  // Webhook processing statistics
+  app.get("/api/webhook-stats", async (req: Request, res: Response) => {
+    try {
+      const { tenantId } = req.query;
+      const stats = await WebhookProcessor.getProcessingStats(tenantId as string);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch webhook statistics" });
+    }
+  });
+
+  // Get failed webhooks for retry interface
+  app.get("/api/webhook-logs/failed", async (req: Request, res: Response) => {
+    try {
+      const { tenantId } = req.query;
+      const failedLogs = await storage.getFailedWebhookLogs(tenantId as string);
+      res.json(failedLogs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch failed webhooks" });
     }
   });
 
