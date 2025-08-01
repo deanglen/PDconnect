@@ -23,10 +23,10 @@ function getAuthHeaders(): HeadersInit {
 }
 
 export async function apiRequest(
-  method: string,
   url: string,
+  method: string = 'GET',
   data?: unknown | undefined,
-): Promise<Response> {
+): Promise<any> {
   const headers: HeadersInit = {
     ...getAuthHeaders(),
     ...(data ? { "Content-Type": "application/json" } : {}),
@@ -40,6 +40,13 @@ export async function apiRequest(
   });
 
   await throwIfResNotOk(res);
+  
+  // Return parsed JSON for most requests
+  const contentType = res.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    return await res.json();
+  }
+  
   return res;
 }
 

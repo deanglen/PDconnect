@@ -43,20 +43,38 @@ function isPublicEndpoint(path: string, config: AuthConfig): boolean {
   ) || false;
 }
 
-// Token-based authentication
-function validateTokenAuth(req: Request, config: AuthConfig): boolean {
+// Token-based authentication - supports both admin tokens and personal API keys
+async function validateTokenAuth(req: Request, config: AuthConfig): Promise<boolean> {
   const authHeader = req.headers[config.tokenHeader!.toLowerCase()];
   
   if (!authHeader || typeof authHeader !== 'string') {
     return false;
   }
 
+  let token = authHeader;
   if (authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-    return token === config.adminToken;
+    token = authHeader.substring(7);
   }
   
-  return authHeader === config.adminToken;
+  // First check if it's the admin token
+  if (token === config.adminToken) {
+    return true;
+  }
+  
+  // Then check if it's a personal API key
+  try {
+    const { storage } = await import("../storage");
+    const user = await storage.validateApiKey(token);
+    if (user && user.isActive) {
+      // Attach user to request for downstream use
+      (req as any).user = user;
+      return true;
+    }
+  } catch (error) {
+    console.error('Error validating API key:', error);
+  }
+  
+  return false;
 }
 
 // Basic authentication
@@ -78,7 +96,7 @@ function validateBasicAuth(req: Request, config: AuthConfig): boolean {
 export function createAuthMiddleware() {
   const config = getAuthConfig();
 
-  return (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     // Skip auth for public endpoints
     if (isPublicEndpoint(req.path, config)) {
       return next();
@@ -93,11 +111,11 @@ export function createAuthMiddleware() {
 
     switch (config.mode) {
       case 'token':
-        isAuthenticated = validateTokenAuth(req, config);
+        isAuthenticated = await validateTokenAuth(req, config);
         if (!isAuthenticated) {
           return res.status(401).json({
-            message: "Admin authentication required",
-            hint: "Use Authorization: Bearer <admin_token> or set AUTH_MODE=none for development"
+            message: "Authentication required",
+            hint: "Use Authorization: Bearer <admin_token_or_personal_api_key>"
           });
         }
         break;
@@ -116,7 +134,7 @@ export function createAuthMiddleware() {
       case 'oauth':
         // OAuth integration would go here
         // For now, fall back to token auth
-        isAuthenticated = validateTokenAuth(req, config);
+        isAuthenticated = await validateTokenAuth(req, config);
         if (!isAuthenticated) {
           return res.status(401).json({
             message: "OAuth authentication not implemented, falling back to token auth"
