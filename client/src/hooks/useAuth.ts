@@ -24,6 +24,15 @@ export function useAuth() {
     enabled: hasApiKey, // Only query if we have an API key
   });
 
+  // Debug logging
+  console.log('Auth Debug:', {
+    hasApiKey,
+    user: user ? `${user.firstName} ${user.lastName}` : null,
+    isLoading,
+    isAuthenticated: !!user,
+    error: error?.message
+  });
+
   return {
     user,
     isLoading: hasApiKey ? isLoading : false, // If no API key, not loading
