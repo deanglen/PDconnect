@@ -60,7 +60,9 @@ export function UserProfile() {
   };
 
   const handleLogout = () => {
-    logout();
+    if (confirm('Are you sure you want to log out?')) {
+      logout();
+    }
   };
 
   return (

@@ -33,8 +33,11 @@ export function logout() {
   localStorage.removeItem('apiKey');
   localStorage.removeItem('adminToken');
   
-  // Reload the page to clear all state
-  window.location.reload();
+  // Clear any cached query data
+  if (typeof window !== 'undefined') {
+    window.location.href = '/';
+    window.location.reload();
+  }
 }
 
 export function getStoredApiKey(): string | null {
