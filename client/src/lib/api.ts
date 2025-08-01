@@ -28,13 +28,11 @@ export interface TokenResponse {
 export const api = {
   // Dashboard
   async getStats(): Promise<DashboardStats> {
-    const res = await apiRequest("GET", "/api/stats");
-    return res.json();
+    return await apiRequest("/api/stats");
   },
 
   async getRecentDocuments(tenantId: string) {
-    const res = await apiRequest("GET", `/api/documents/recent?tenantId=${tenantId}`);
-    return res.json();
+    return await apiRequest(`/api/documents/recent?tenantId=${tenantId}`);
   },
 
   // Document creation
@@ -44,8 +42,7 @@ export const api = {
     module: string;
     templateId?: string;
   }) {
-    const res = await apiRequest("POST", "/api/create-doc", data);
-    return res.json();
+    return await apiRequest("/api/create-doc", "POST", data);
   },
 
   // Tokens
@@ -53,29 +50,25 @@ export const api = {
     const params = new URLSearchParams({ tenantId, module });
     if (recordId) params.append('recordId', recordId);
     
-    const res = await apiRequest("GET", `/api/tokens?${params}`);
-    return res.json();
+    return await apiRequest(`/api/tokens?${params}`);
   },
 
   // Tenants
   async getTenants() {
-    const res = await apiRequest("GET", "/api/tenants");
-    return res.json();
+    return await apiRequest("/api/tenants");
   },
 
   async createTenant(data: any) {
-    const res = await apiRequest("POST", "/api/tenants", data);
-    return res.json();
+    return await apiRequest("/api/tenants", "POST", data);
   },
 
   async updateTenant(id: string, data: any) {
-    const res = await apiRequest("PUT", `/api/tenants/${id}`, data);
-    return res.json();
+    return await apiRequest(`/api/tenants/${id}`, "PUT", data);
   },
 
   async deleteTenant(id: string) {
-    const res = await apiRequest("DELETE", `/api/tenants/${id}`);
-    return res.status === 204;
+    await apiRequest(`/api/tenants/${id}`, "DELETE");
+    return true;
   },
 
   // Field mappings
@@ -83,45 +76,39 @@ export const api = {
     const params = new URLSearchParams({ tenantId });
     if (module) params.append('module', module);
     
-    const res = await apiRequest("GET", `/api/field-mappings?${params}`);
-    return res.json();
+    return await apiRequest(`/api/field-mappings?${params}`);
   },
 
   async createFieldMapping(data: any) {
-    const res = await apiRequest("POST", "/api/field-mappings", data);
-    return res.json();
+    return await apiRequest("/api/field-mappings", "POST", data);
   },
 
   async deleteFieldMapping(id: string) {
-    const res = await apiRequest("DELETE", `/api/field-mappings/${id}`);
-    return res.status === 204;
+    await apiRequest(`/api/field-mappings/${id}`, "DELETE");
+    return true;
   },
 
   // Workflows
   async getWorkflows(tenantId: string) {
-    const res = await apiRequest("GET", `/api/workflows?tenantId=${tenantId}`);
-    return res.json();
+    return await apiRequest(`/api/workflows?tenantId=${tenantId}`);
   },
 
   async createWorkflow(data: any) {
-    const res = await apiRequest("POST", "/api/workflows", data);
-    return res.json();
+    return await apiRequest("/api/workflows", "POST", data);
   },
 
   async updateWorkflow(id: string, data: any) {
-    const res = await apiRequest("PUT", `/api/workflows/${id}`, data);
-    return res.json();
+    return await apiRequest(`/api/workflows/${id}`, "PUT", data);
   },
 
   async deleteWorkflow(id: string) {
-    const res = await apiRequest("DELETE", `/api/workflows/${id}`);
-    return res.status === 204;
+    await apiRequest(`/api/workflows/${id}`, "DELETE");
+    return true;
   },
 
   // Webhook logs
   async getWebhookLogs(tenantId?: string) {
     const params = tenantId ? `?tenantId=${tenantId}` : '';
-    const res = await apiRequest("GET", `/api/webhook-logs${params}`);
-    return res.json();
+    return await apiRequest(`/api/webhook-logs${params}`);
   },
 };
