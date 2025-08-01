@@ -2,8 +2,14 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    let errorText = res.statusText;
+    try {
+      const text = await res.text();
+      if (text) errorText = text;
+    } catch {
+      // If we can't read the response text, use status text
+    }
+    throw new Error(`${res.status}: ${errorText}`);
   }
 }
 
@@ -79,14 +85,16 @@ export const getQueryFn: <T>(options: {
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: getQueryFn({ on401: "throw" }),
+      queryFn: getQueryFn({ on401: "returnNull" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
       staleTime: Infinity,
       retry: false,
+      throwOnError: false, // Don't throw unhandled errors
     },
     mutations: {
       retry: false,
+      throwOnError: false, // Don't throw unhandled errors
     },
   },
 });

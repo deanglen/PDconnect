@@ -22,15 +22,7 @@ export function useAuth() {
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
     enabled: hasApiKey, // Only query if we have an API key
-  });
-
-  // Debug logging
-  console.log('Auth Debug:', {
-    hasApiKey,
-    user: user ? `${user.firstName} ${user.lastName}` : null,
-    isLoading,
-    isAuthenticated: !!user,
-    error: error?.message
+    throwOnError: false, // Don't throw errors, handle them gracefully
   });
 
   return {
