@@ -9,7 +9,11 @@ async function throwIfResNotOk(res: Response) {
 
 // Get stored API key for authentication
 function getAuthHeaders(): HeadersInit {
-  const apiKey = localStorage.getItem('apiKey') || localStorage.getItem('adminToken') || 'user_1753977596251_ockbkuys03';
+  const apiKey = localStorage.getItem('apiKey') || localStorage.getItem('adminToken');
+  
+  if (!apiKey) {
+    return {};
+  }
   
   const headers: HeadersInit = {
     "Authorization": `Bearer ${apiKey}`,
@@ -45,8 +49,15 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    const authHeaders = getAuthHeaders();
+    
+    // If no API key is stored, return null for authentication queries
+    if (Object.keys(authHeaders).length === 0 && unauthorizedBehavior === "returnNull") {
+      return null;
+    }
+    
     const res = await fetch(queryKey.join("/") as string, {
-      headers: getAuthHeaders(),
+      headers: authHeaders,
       credentials: "include",
     });
 

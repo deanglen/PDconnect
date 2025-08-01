@@ -11,18 +11,22 @@ interface User {
   tenantAccess: string[];
   lastLoginAt?: string;
   createdAt: string;
+  profileImageUrl?: string | null;
 }
 
 export function useAuth() {
+  const hasApiKey = !!(localStorage.getItem('apiKey') || localStorage.getItem('adminToken'));
+  
   const { data: user, isLoading, error } = useQuery<User>({
     queryKey: ["/api/users/me"],
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: hasApiKey, // Only query if we have an API key
   });
 
   return {
     user,
-    isLoading,
+    isLoading: hasApiKey ? isLoading : false, // If no API key, not loading
     isAuthenticated: !!user,
     error,
   };
