@@ -12,9 +12,30 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 import { api } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { 
+  Settings, 
+  Play, 
+  Plus, 
+  Minus, 
+  ArrowRight, 
+  ArrowLeftRight, 
+  Workflow,
+  Zap,
+  Database,
+  Mail,
+  FileText,
+  Calendar,
+  Phone,
+  Link,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Edit3
+} from "lucide-react";
 
 interface WorkflowCondition {
   field: string;
@@ -31,12 +52,37 @@ interface WorkflowAction {
   subject?: string;
   description?: string;
   recipients?: string[];
+  to_email?: string;
+  body?: string;
+  source?: string;
+  source_module?: string;
+  link_name?: string;
+  target_id?: string;
+  name?: string;
 }
 
 interface WorkflowRule {
   conditions: WorkflowCondition[];
   thenActions: WorkflowAction[];
   elseActions?: WorkflowAction[];
+}
+
+interface WorkflowData {
+  name: string;
+  description: string;
+  triggerEvent: string;
+  conditions: WorkflowCondition[];
+  ifThenElseRules: {
+    if: WorkflowCondition[];
+    then: WorkflowAction[];
+    else: WorkflowAction[];
+  };
+  actions: WorkflowAction[];
+  elseActions: WorkflowAction[];
+  priority: number;
+  timeout: number;
+  isActive: boolean;
+  configMode: 'point_click' | 'json';
 }
 
 // Workflow Editor Component
@@ -53,18 +99,18 @@ function WorkflowEditor({
   onSave: (data: any) => void;
   isLoading: boolean;
 }) {
-  const [workflowData, setWorkflowData] = useState({
+  const [workflowData, setWorkflowData] = useState<WorkflowData>({
     name: editingWorkflow?.name || '',
     description: editingWorkflow?.description || '',
     triggerEvent: editingWorkflow?.triggerEvent || 'document_state_changed',
-    conditions: editingWorkflow?.conditions || [] as WorkflowCondition[],
+    conditions: editingWorkflow?.conditions || [],
     ifThenElseRules: editingWorkflow?.ifThenElseRules || { 
-      if: [] as WorkflowCondition[], 
-      then: [] as WorkflowAction[], 
-      else: [] as WorkflowAction[] 
+      if: [], 
+      then: [], 
+      else: [] 
     },
-    actions: editingWorkflow?.actions || [] as WorkflowAction[],
-    elseActions: editingWorkflow?.elseActions || [] as WorkflowAction[],
+    actions: editingWorkflow?.actions || [],
+    elseActions: editingWorkflow?.elseActions || [],
     priority: editingWorkflow?.priority || 100,
     timeout: editingWorkflow?.timeout || 30,
     isActive: editingWorkflow?.isActive ?? true,
@@ -209,7 +255,7 @@ function WorkflowEditor({
       ...prev,
       ifThenElseRules: {
         ...prev.ifThenElseRules,
-        if: prev.ifThenElseRules.if.map((condition, i) => 
+        if: prev.ifThenElseRules.if.map((condition: WorkflowCondition, i: number) => 
           i === index ? { ...condition, [field]: value } : condition
         )
       }
@@ -221,7 +267,7 @@ function WorkflowEditor({
       ...prev,
       ifThenElseRules: {
         ...prev.ifThenElseRules,
-        [actionType]: prev.ifThenElseRules[actionType].map((action, i) => 
+        [actionType]: prev.ifThenElseRules[actionType].map((action: WorkflowAction, i: number) => 
           i === index ? { ...action, [field]: value } : action
         )
       }
@@ -289,99 +335,140 @@ function WorkflowEditor({
           <TabsTrigger value="json">JSON Configuration</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="point_click" className="space-y-6">
-          {/* Helper Information */}
-          <Alert>
-            <AlertDescription>
-              <div className="space-y-2">
-                <h4 className="font-medium">Creating Your Workflow</h4>
-                <ol className="text-sm space-y-1 list-decimal list-inside">
-                  <li><strong>Choose a PandaDoc webhook event</strong> - This determines when your workflow triggers</li>
-                  <li><strong>Add conditions (optional)</strong> - Control when the workflow should run based on document data</li>
-                  <li><strong>Define actions</strong> - Specify what should happen in your SugarCRM when the event occurs</li>
-                </ol>
-                <p className="text-xs text-gray-600 mt-2">
-                  <strong>Note:</strong> Make sure to configure the webhook URL in your PandaDoc account settings to receive events.
-                </p>
+        <TabsContent value="point_click" className="space-y-8">
+          {/* Visual Flow Header */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-lg border">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <Workflow className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
-            </AlertDescription>
-          </Alert>
-
-          {/* Basic Information */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="name" className="text-sm font-medium">
-                Workflow Name *
-              </Label>
-              <p className="text-xs text-gray-600 mb-2">
-                Give your workflow a descriptive name
-              </p>
-              <Input
-                id="name"
-                value={workflowData.name}
-                onChange={(e) => setWorkflowData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="e.g., Update Opportunity When Document Signed"
-                className="w-full"
-              />
-            </div>
-            <div>
-              <Label htmlFor="triggerEvent" className="text-sm font-medium">
-                PandaDoc Webhook Event *
-              </Label>
-              <p className="text-xs text-gray-600 mb-2">
-                Choose which PandaDoc event will trigger this workflow
-              </p>
-              <Select
-                value={workflowData.triggerEvent}
-                onValueChange={(value) => setWorkflowData(prev => ({ ...prev, triggerEvent: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a PandaDoc webhook event" />
-                </SelectTrigger>
-                <SelectContent className="max-h-60 overflow-y-auto">
-                  {triggerEvents.map(event => (
-                    <SelectItem key={event.value} value={event.value}>
-                      <div className="flex flex-col">
-                        <div className="font-medium">{event.label}</div>
-                        <div className="text-xs text-gray-500 mt-1">{event.description}</div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="description" className="text-sm font-medium">
-              Description
-            </Label>
-            <p className="text-xs text-gray-600 mb-2">
-              Explain what this workflow will do when triggered
-            </p>
-            <Textarea
-              id="description"
-              value={workflowData.description}
-              onChange={(e) => setWorkflowData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="e.g., Automatically update the opportunity sales stage to 'Closed Won' and attach the signed document when a PandaDoc document is completed..."
-              className="min-h-20"
-            />
-          </div>
-
-          {/* IF Conditions */}
-          <div className="border rounded-lg p-4">
-            <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-lg font-semibold">IF Conditions (Optional)</h3>
-                <p className="text-sm text-gray-600">Add conditions to control when this workflow runs</p>
+                <h2 className="text-xl font-semibold">Visual Workflow Builder</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Create powerful automation workflows with our drag-and-drop interface</p>
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={addCondition}>
-                <i className="fas fa-plus mr-2"></i>
-                Add Condition
-              </Button>
             </div>
             
-            {workflowData.ifThenElseRules.if.map((condition, index) => (
+            {/* Quick Start Guide */}
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="flex flex-col items-center space-y-2">
+                <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                  <span className="text-sm font-medium text-green-600 dark:text-green-400">1</span>
+                </div>
+                <div className="text-sm">
+                  <div className="font-medium">Choose Trigger</div>
+                  <div className="text-gray-600 dark:text-gray-400">Select PandaDoc event</div>
+                </div>
+              </div>
+              <div className="flex flex-col items-center space-y-2">
+                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                  <span className="text-sm font-medium text-blue-600 dark:text-blue-400">2</span>
+                </div>
+                <div className="text-sm">
+                  <div className="font-medium">Add Conditions</div>
+                  <div className="text-gray-600 dark:text-gray-400">Filter when to run</div>
+                </div>
+              </div>
+              <div className="flex flex-col items-center space-y-2">
+                <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                  <span className="text-sm font-medium text-purple-600 dark:text-purple-400">3</span>
+                </div>
+                <div className="text-sm">
+                  <div className="font-medium">Define Actions</div>
+                  <div className="text-gray-600 dark:text-gray-400">Configure SugarCRM updates</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Basic Configuration */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                <CardTitle className="text-lg">Basic Configuration</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="name" className="text-sm font-medium">
+                    Workflow Name *
+                  </Label>
+                  <Input
+                    id="name"
+                    value={workflowData.name}
+                    onChange={(e) => setWorkflowData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g., Update Opportunity When Document Signed"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="triggerEvent" className="text-sm font-medium">
+                    Trigger Event *
+                  </Label>
+                  <Select
+                    value={workflowData.triggerEvent}
+                    onValueChange={(value) => setWorkflowData(prev => ({ ...prev, triggerEvent: value }))}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select PandaDoc event" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 overflow-y-auto">
+                      {triggerEvents.map(event => (
+                        <SelectItem key={event.value} value={event.value}>
+                          <div>
+                            <div className="font-medium text-sm">{event.label}</div>
+                            <div className="text-xs text-gray-500 mt-0.5">{event.description}</div>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="description" className="text-sm font-medium">
+                  Description
+                </Label>
+                <Textarea
+                  id="description"
+                  value={workflowData.description}
+                  onChange={(e) => setWorkflowData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Describe what this workflow accomplishes..."
+                  className="mt-1"
+                  rows={3}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Visual Flow: IF/THEN/ELSE Logic */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <ArrowLeftRight className="h-4 w-4" />
+                <CardTitle className="text-lg">Workflow Logic</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* IF Section */}
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
+                    <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">IF Conditions</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Add conditions to control when this workflow runs</p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={addCondition} className="ml-auto">
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Condition
+                  </Button>
+                </div>
+            
+            {workflowData.ifThenElseRules.if.map((condition: WorkflowCondition, index: number) => (
               <div key={index} className="grid grid-cols-5 gap-2 mb-2">
                 <Select
                   value={condition.field}
@@ -498,7 +585,7 @@ function WorkflowEditor({
               </Button>
             </div>
             
-            {workflowData.ifThenElseRules.then.map((action, index) => (
+            {workflowData.ifThenElseRules.then.map((action: WorkflowAction, index: number) => (
               <div key={index} className="grid grid-cols-5 gap-2 mb-2">
                 <Select
                   value={action.type}
@@ -658,7 +745,7 @@ function WorkflowEditor({
                       ...prev,
                       ifThenElseRules: {
                         ...prev.ifThenElseRules,
-                        then: prev.ifThenElseRules.then.filter((_, i) => i !== index)
+                        then: prev.ifThenElseRules.then.filter((_: WorkflowAction, i: number) => i !== index)
                       }
                     }));
                   }}
@@ -679,7 +766,7 @@ function WorkflowEditor({
               </Button>
             </div>
             
-            {workflowData.ifThenElseRules.else.map((action, index) => (
+            {workflowData.ifThenElseRules.else.map((action: WorkflowAction, index: number) => (
               <div key={index} className="grid grid-cols-5 gap-2 mb-2">
                 <Select
                   value={action.type}
@@ -807,7 +894,7 @@ function WorkflowEditor({
                       ...prev,
                       ifThenElseRules: {
                         ...prev.ifThenElseRules,
-                        else: prev.ifThenElseRules.else.filter((_, i) => i !== index)
+                        else: prev.ifThenElseRules.else.filter((_: WorkflowAction, i: number) => i !== index)
                       }
                     }));
                   }}
@@ -818,35 +905,56 @@ function WorkflowEditor({
             ))}
           </div>
 
-          {/* Additional Settings */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="priority">Priority (1-1000)</Label>
-              <Input
-                id="priority"
-                type="number"
-                value={workflowData.priority}
-                onChange={(e) => setWorkflowData(prev => ({ ...prev, priority: parseInt(e.target.value) || 100 }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="timeout">Timeout (seconds)</Label>
-              <Input
-                id="timeout"
-                type="number"
-                value={workflowData.timeout}
-                onChange={(e) => setWorkflowData(prev => ({ ...prev, timeout: parseInt(e.target.value) || 30 }))}
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Switch
-              checked={workflowData.isActive}
-              onCheckedChange={(checked) => setWorkflowData(prev => ({ ...prev, isActive: checked }))}
-            />
-            <Label>Active Workflow</Label>
-          </div>
+              {/* Advanced Settings */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Settings className="h-4 w-4" />
+                    <CardTitle className="text-lg">Advanced Settings</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="priority">Priority</Label>
+                      <Input
+                        id="priority"
+                        type="number"
+                        min="1"
+                        max="1000"
+                        value={workflowData.priority}
+                        onChange={(e) => setWorkflowData(prev => ({ ...prev, priority: parseInt(e.target.value) || 100 }))}
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Higher numbers = higher priority</p>
+                    </div>
+                    <div>
+                      <Label htmlFor="timeout">Timeout (seconds)</Label>
+                      <Input
+                        id="timeout"
+                        type="number"
+                        min="5"
+                        max="300"
+                        value={workflowData.timeout}
+                        onChange={(e) => setWorkflowData(prev => ({ ...prev, timeout: parseInt(e.target.value) || 30 }))}
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Maximum execution time</p>
+                    </div>
+                    <div className="flex items-center justify-center">
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          checked={workflowData.isActive}
+                          onCheckedChange={(checked) => setWorkflowData(prev => ({ ...prev, isActive: checked }))}
+                        />
+                        <Label>Active Workflow</Label>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="json" className="space-y-4">
