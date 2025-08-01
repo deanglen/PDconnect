@@ -53,11 +53,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize retry queue processing
   initializeRetryQueue();
 
-  // Multi-cloud authentication middleware
+  // Multi-cloud authentication middleware - ONLY for API routes
   const authMiddleware = createAuthMiddleware();
   
-  // Apply authentication to all routes (public endpoints are automatically excluded)
-  app.use(authMiddleware);
+  // Apply authentication to API routes only, not frontend routes
+  app.use('/api', authMiddleware);
 
   // Request logging middleware
   app.use((req: Request, res: Response, next) => {
