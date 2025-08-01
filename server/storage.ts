@@ -258,18 +258,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getWebhookLogs(tenantId?: string, status?: string, eventType?: string): Promise<WebhookLog[]> {
-    let query = db.select().from(webhookLogs);
-    
     const conditions = [];
     if (tenantId) conditions.push(eq(webhookLogs.tenantId, tenantId));
     if (status) conditions.push(eq(webhookLogs.status, status));
     if (eventType) conditions.push(eq(webhookLogs.eventType, eventType));
     
     if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+      return await db.select().from(webhookLogs)
+        .where(and(...conditions))
+        .orderBy(desc(webhookLogs.receivedAt));
     }
     
-    return await query.orderBy(desc(webhookLogs.receivedAt));
+    return await db.select().from(webhookLogs)
+      .orderBy(desc(webhookLogs.receivedAt));
   }
 
   async getWebhookLogById(id: string): Promise<WebhookLog | undefined> {
@@ -297,17 +298,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getFailedWebhookLogs(tenantId?: string): Promise<WebhookLog[]> {
-    let query = db.select().from(webhookLogs)
-      .where(eq(webhookLogs.status, 'failed'));
-    
     if (tenantId) {
-      query = query.where(and(
-        eq(webhookLogs.status, 'failed'),
-        eq(webhookLogs.tenantId, tenantId)
-      ));
+      return await db.select().from(webhookLogs)
+        .where(and(
+          eq(webhookLogs.status, 'failed'),
+          eq(webhookLogs.tenantId, tenantId)
+        ))
+        .orderBy(desc(webhookLogs.receivedAt));
     }
     
-    return await query.orderBy(desc(webhookLogs.receivedAt));
+    return await db.select().from(webhookLogs)
+      .where(eq(webhookLogs.status, 'failed'))
+      .orderBy(desc(webhookLogs.receivedAt));
   }
 
   async getRetryableWebhookLogs(): Promise<WebhookLog[]> {
