@@ -1,0 +1,98 @@
+to enable field mapping in a dynamic and testable way, your middleware needs access to a representative schema of the SugarCRM "Opportunities" module. Since you don’t have access to a live SugarCRM environment, here's a sample mock dataset you can use to simulate Opportunity records and field metadata for local development or Replit testing.
+
+🔧 Sample SugarCRM Opportunity Fields (Schema)
+This simulates what you’d get if you queried GET /<base_url>/Opportunities/metadata or a similar metadata endpoint.
+
+json
+Copy
+Edit
+[
+  {
+    "name": "id",
+    "label": "ID",
+    "type": "id",
+    "required": true
+  },
+  {
+    "name": "name",
+    "label": "Opportunity Name",
+    "type": "varchar",
+    "required": true
+  },
+  {
+    "name": "amount",
+    "label": "Amount",
+    "type": "currency",
+    "required": false
+  },
+  {
+    "name": "date_closed",
+    "label": "Expected Close Date",
+    "type": "date",
+    "required": false
+  },
+  {
+    "name": "sales_stage",
+    "label": "Sales Stage",
+    "type": "enum",
+    "required": false
+  },
+  {
+    "name": "description",
+    "label": "Description",
+    "type": "text",
+    "required": false
+  },
+  {
+    "name": "account_name",
+    "label": "Account Name",
+    "type": "relate",
+    "required": false
+  },
+  {
+    "name": "assigned_user_name",
+    "label": "Assigned To",
+    "type": "relate",
+    "required": false
+  },
+  {
+    "name": "created_by_name",
+    "label": "Created By",
+    "type": "relate",
+    "required": false
+  }
+]
+🧪 Sample Mock Record: One Opportunity
+You can pair this schema with a mock Opportunity record to test value extraction and token generation:
+
+json
+Copy
+Edit
+{
+  "id": "oppty_1234",
+  "name": "Big Deal Opportunity",
+  "amount": 45000,
+  "date_closed": "2025-10-01",
+  "sales_stage": "Proposal",
+  "description": "This is a major strategic client deal.",
+  "account_name": "Acme Corporation",
+  "assigned_user_name": "John Sales",
+  "created_by_name": "Jane Admin"
+}
+🧩 Next Steps for You
+You can now:
+
+Use the schema above to populate your middleware's "Field Mapping" UI or endpoint.
+
+Let users select mappings to PandaDoc token names.
+
+Simulate /api/documents/create requests with values like:
+
+json
+Copy
+Edit
+{
+  "name": "opportunity_name",
+  "value": "Big Deal Opportunity"
+}
+Would you like me to help generate the tokenMappings and fieldMappings files for this sample Opportunity record?

@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import https from 'https';
 import { Tenant } from '@shared/schema';
+import { moduleSchemas, mockRecords } from '../mock-data/sugarcrm-schemas';
 
 export interface SugarCRMField {
   name: string;
@@ -98,6 +99,12 @@ export class SugarCRMService {
   }
 
   async getRecord(module: string, recordId: string): Promise<SugarCRMRecord> {
+    // For UAT testing, use mock data if available
+    if (process.env.NODE_ENV === 'development' && mockRecords[module]?.[recordId]) {
+      console.log(`[UAT Mode] Using mock data for ${module} record ${recordId}`);
+      return mockRecords[module][recordId];
+    }
+
     await this.ensureAuthenticated();
 
     try {
@@ -116,6 +123,12 @@ export class SugarCRMService {
   }
 
   async getModuleFields(module: string): Promise<SugarCRMField[]> {
+    // For UAT testing, use mock schema if available
+    if (process.env.NODE_ENV === 'development' && moduleSchemas[module]) {
+      console.log(`[UAT Mode] Using mock schema for ${module} module`);
+      return moduleSchemas[module];
+    }
+
     await this.ensureAuthenticated();
 
     try {

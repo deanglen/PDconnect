@@ -800,6 +800,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get available tokens for a record - UAT endpoint
+  app.get('/api/tokens/list', async (req: any, res: any) => {
+    try {
+      const requestId = (req as any).requestId;
+      
+      // Extract tenant info from authentication (if using tenant API key)
+      let tenantFromAuth: any = null;
+      if ((req as any).authType === 'tenant_api_key' && (req as any).tenant) {
+        tenantFromAuth = (req as any).tenant;
+      }
+      
+      const { record_id: recordId, module = 'Opportunities', tenant_id: tenantId } = req.query;
+      
+      if (!recordId) {
+        return res.status(400).json({ message: "record_id parameter is required" });
+      }
+      
+      // Determine tenant ID
+      const finalTenantId = tenantFromAuth?.id || tenantId;
+      if (!finalTenantId) {
+        return res.status(400).json({ 
+          message: "Tenant ID required. Either provide tenant_id parameter or use tenant API key authentication." 
+        });
+      }
+      
+      // Get tenant information
+      const tenant = tenantFromAuth || await storage.getTenant(finalTenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      
+      // Initialize SugarCRM service
+      const sugarCrmService = new SugarCRMService(tenant);
+      
+      // Get record data and generate tokens
+      try {
+        const record = await sugarCrmService.getRecord(module, recordId);
+        const tokens = sugarCrmService.generateTokensFromRecord(record);
+        
+        // Also get module fields for reference
+        const fields = await sugarCrmService.getModuleFields(module);
+        
+        res.json({
+          recordId,
+          module,
+          tokens,
+          fields,
+          record
+        });
+      } catch (error: any) {
+        logger.error('Failed to generate tokens', { requestId }, error);
+        res.status(500).json({ 
+          message: "Failed to generate tokens",
+          error: error.message 
+        });
+      }
+    } catch (error: any) {
+      logger.error('Token list endpoint error', {}, error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Document creation endpoint - SugarCRM to PandaDoc
   app.post("/api/documents/create", async (req: Request, res: Response) => {
     try {
