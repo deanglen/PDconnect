@@ -34,7 +34,8 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Edit3
+  Edit3,
+  Trash2
 } from "lucide-react";
 
 interface WorkflowCondition {
@@ -848,8 +849,9 @@ function WorkflowEditor({
                 )}
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="destructive"
                   size="sm"
+                  className="bg-red-600 hover:bg-red-700 text-white"
                   onClick={() => {
                     setWorkflowData(prev => ({
                       ...prev,
@@ -860,7 +862,8 @@ function WorkflowEditor({
                     }));
                   }}
                 >
-                  <i className="fas fa-trash"></i>
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete
                 </Button>
               </div>
             ))}
@@ -1082,9 +1085,9 @@ function WorkflowEditor({
                   
                   <div className="flex justify-end">
                     <Button
-                      variant="ghost"
+                      variant="destructive"
                       size="sm"
-                      className="text-red-600 hover:bg-red-50"
+                      className="bg-red-600 hover:bg-red-700 text-white"
                       onClick={() => {
                         setWorkflowData(prev => ({
                           ...prev,
@@ -1095,7 +1098,8 @@ function WorkflowEditor({
                         }));
                       }}
                     >
-                      <Minus className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
                     </Button>
                   </div>
                 </div>
