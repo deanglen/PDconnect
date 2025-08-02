@@ -96,8 +96,8 @@ export default function Mappings() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      tenantId: "",
-      sugarModule: "",
+      tenantId: selectedTenant || "",
+      sugarModule: activeModule || "",
       sugarField: "",
       sugarFieldLabel: "",
       sugarFieldType: "",
@@ -106,7 +106,14 @@ export default function Mappings() {
     },
   });
 
+  // Update form values when selectedTenant or activeModule changes
+  useEffect(() => {
+    form.setValue('tenantId', selectedTenant || "");
+    form.setValue('sugarModule', activeModule || "");
+  }, [selectedTenant, activeModule, form]);
+
   const onSubmit = (values: z.infer<typeof formSchema>) => {
+    console.log('Form submission triggered!');
     console.log('Form submission data:', {
       ...values,
       tenantId: selectedTenant,
@@ -115,6 +122,8 @@ export default function Mappings() {
     
     // Check for form validation errors
     console.log('Form errors:', form.formState.errors);
+    console.log('Form state isValid:', form.formState.isValid);
+    console.log('Form state isSubmitting:', form.formState.isSubmitting);
     
     createMutation.mutate({
       ...values,
@@ -285,7 +294,11 @@ export default function Mappings() {
                         <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                           Cancel
                         </Button>
-                        <Button type="submit" disabled={createMutation.isPending}>
+                        <Button 
+                          type="submit" 
+                          disabled={createMutation.isPending}
+                          onClick={() => console.log('Create Mapping button clicked!')}
+                        >
                           {createMutation.isPending ? "Creating..." : "Create Mapping"}
                         </Button>
                       </div>

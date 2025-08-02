@@ -1,0 +1,70 @@
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.Understand this error
+workspace_iframe.html:32 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.Understand this error
+framework-1ecb78bee0c47780.js:1 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+_ @ framework-1ecb78bee0c47780.js:1Understand this error
+framework-1ecb78bee0c47780.js:1 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+_ @ framework-1ecb78bee0c47780.js:1Understand this error
+framework-1ecb78bee0c47780.js:1 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+_ @ framework-1ecb78bee0c47780.js:1Understand this error
+framework-1ecb78bee0c47780.js:1 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+_ @ framework-1ecb78bee0c47780.js:1Understand this error
+framework-1ecb78bee0c47780.js:1 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+_ @ framework-1ecb78bee0c47780.js:1Understand this error
+framework-1ecb78bee0c47780.js:1 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+_ @ framework-1ecb78bee0c47780.js:1Understand this error
+framework-1ecb78bee0c47780.js:1 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+_ @ framework-1ecb78bee0c47780.js:1Understand this error
+framework-1ecb78bee0c47780.js:1 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+_ @ framework-1ecb78bee0c47780.js:1Understand this error
+framework-1ecb78bee0c47780.js:1 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+_ @ framework-1ecb78bee0c47780.js:1Understand this error
+framework-1ecb78bee0c47780.js:1 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+_ @ framework-1ecb78bee0c47780.js:1Understand this error
+framework-1ecb78bee0c47780.js:1 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+_ @ framework-1ecb78bee0c47780.js:1Understand this error
+framework-1ecb78bee0c47780.js:1 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+_ @ framework-1ecb78bee0c47780.js:1Understand this error
+framework-1ecb78bee0c47780.js:1 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+_ @ framework-1ecb78bee0c47780.js:1Understand this error
+framework-1ecb78bee0c47780.js:1 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+_ @ framework-1ecb78bee0c47780.js:1Understand this error
+framework-1ecb78bee0c47780.js:1 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+_ @ framework-1ecb78bee0c47780.js:1Understand this error
+framework-1ecb78bee0c47780.js:1 Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+_ @ framework-1ecb78bee0c47780.js:1Understand this error
+framework-1ecb78bee0c47780.js:1 Unrecognized feature: 'ambient-light-sensor'.
+_ @ framework-1ecb78bee0c47780.js:1Understand this warning
+framework-1ecb78bee0c47780.js:1 Unrecognized feature: 'battery'.
+_ @ framework-1ecb78bee0c47780.js:1Understand this warning
+framework-1ecb78bee0c47780.js:1 Unrecognized feature: 'execution-while-not-rendered'.
+_ @ framework-1ecb78bee0c47780.js:1Understand this warning
+framework-1ecb78bee0c47780.js:1 Unrecognized feature: 'execution-while-out-of-viewport'.
+_ @ framework-1ecb78bee0c47780.js:1Understand this warning
+framework-1ecb78bee0c47780.js:1 Unrecognized feature: 'layout-animations'.
+_ @ framework-1ecb78bee0c47780.js:1Understand this warning
+framework-1ecb78bee0c47780.js:1 Unrecognized feature: 'legacy-image-formats'.
+_ @ framework-1ecb78bee0c47780.js:1Understand this warning
+framework-1ecb78bee0c47780.js:1 Unrecognized feature: 'navigation-override'.
+_ @ framework-1ecb78bee0c47780.js:1Understand this warning
+framework-1ecb78bee0c47780.js:1 Unrecognized feature: 'oversized-images'.
+_ @ framework-1ecb78bee0c47780.js:1Understand this warning
+framework-1ecb78bee0c47780.js:1 Unrecognized feature: 'publickey-credentials'.
+_ @ framework-1ecb78bee0c47780.js:1Understand this warning
+framework-1ecb78bee0c47780.js:1 Unrecognized feature: 'speaker-selection'.
+_ @ framework-1ecb78bee0c47780.js:1Understand this warning
+framework-1ecb78bee0c47780.js:1 Unrecognized feature: 'unoptimized-images'.
+_ @ framework-1ecb78bee0c47780.js:1Understand this warning
+framework-1ecb78bee0c47780.js:1 Unrecognized feature: 'unsized-media'.
+_ @ framework-1ecb78bee0c47780.js:1Understand this warning
+framework-1ecb78bee0c47780.js:1 Unrecognized feature: 'pointer-lock'.
+_ @ framework-1ecb78bee0c47780.js:1Understand this warning
+framework-1ecb78bee0c47780.js:1 Allow attribute will take precedence over 'allowfullscreen'.
+_ @ framework-1ecb78bee0c47780.js:1Understand this warning
+framework-1ecb78bee0c47780.js:1 Allow attribute will take precedence over 'allowpaymentrequest'.
+_ @ framework-1ecb78bee0c47780.js:1Understand this warning
+stallwart.build.js:1 stallwart: failed ping 1
+workspace_iframe.html:32 Unrecognized feature: 'ambient-light-sensor'.Understand this warning
+workspace_iframe.html:32 Unrecognized feature: 'battery'.Understand this warning
+workspace_iframe.html:32 Unrecognized feature: 'execution-while-not-rendered'.Understand this warning
+workspace_iframe.html:32 Unrecognized feature: 'execution-while-out-of-viewport'.Understand this warning
+workspace_iframe.html:32 Unrecognized feature: 'layout-animations'.Understand this warning
