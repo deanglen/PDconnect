@@ -138,6 +138,29 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async validateTenantApiKey(apiKey: string): Promise<Tenant | undefined> {
+    const [tenant] = await db
+      .select()
+      .from(tenants)
+      .where(and(eq(tenants.integrationApiKey, apiKey), eq(tenants.isActive, true)));
+    
+    return tenant;
+  }
+
+  async generateTenantApiKey(tenantId: string): Promise<string> {
+    const apiKey = `tenant_${Date.now()}_${Math.random().toString(36).substr(2, 12)}`;
+    
+    await db
+      .update(tenants)
+      .set({ 
+        integrationApiKey: apiKey,
+        updatedAt: new Date()
+      })
+      .where(eq(tenants.id, tenantId));
+    
+    return apiKey;
+  }
+
   async upsertUser(userData: UpsertUser): Promise<User> {
     const [user] = await db
       .insert(users)

@@ -29,6 +29,7 @@ export const tenants = pgTable("tenants", {
   pandaDocApiKey: text("panda_doc_api_key").notNull(),
   pandaDocSandbox: boolean("panda_doc_sandbox").default(false),
   webhookSharedSecret: text("webhook_shared_secret"),
+  integrationApiKey: text("integration_api_key").unique(), // Tenant-specific API key for SugarCRM integration
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

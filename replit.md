@@ -44,6 +44,7 @@ The application supports multi-tenancy, providing isolated configurations for ea
 - **User Management**: Comprehensive role-based access control (super_admin, admin, viewer) with personal API keys, CRUD operations, tenant-specific access, and professional login interface with secure authentication.
 - **Operational Excellence**: Includes a `/health` endpoint, enhanced logging with sensitive data redaction, and an automatic retry queue with exponential backoff for failed operations.
 - **Performance Optimization**: Client-side optimizations for field mapping UI and JSON view/edit capabilities.
+- **Tenant-Specific API Keys**: Enhanced authentication system with tenant-specific integration API keys for better SugarCRM integration. Each tenant can generate unique API keys that automatically identify the tenant without requiring explicit tenantId in requests.
 
 ## External Dependencies
 

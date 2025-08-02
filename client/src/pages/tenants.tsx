@@ -89,6 +89,24 @@ export default function Tenants() {
     },
   });
 
+  const generateApiKeyMutation = useMutation({
+    mutationFn: api.generateTenantApiKey,
+    onSuccess: (response: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tenants'] });
+      toast({
+        title: "API Key Generated",
+        description: `New tenant API key created. Use for SugarCRM integration: ${response.apiKey.substring(0, 20)}...`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate API key",
+        variant: "destructive",
+      });
+    },
+  });
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -450,10 +468,23 @@ export default function Tenants() {
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                             <div className="flex items-center gap-2">
                               <i className="fas fa-key text-gray-400"></i>
-                              <span className="text-gray-600">API Key: </span>
+                              <span className="text-gray-600">PandaDoc API: </span>
                               <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
                                 {tenant.pandaDocApiKey.substring(0, 8)}...
                               </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <i className="fas fa-code text-gray-400"></i>
+                              <span className="text-gray-600">Integration API: </span>
+                              {tenant.integrationApiKey ? (
+                                <span className="font-mono text-xs bg-blue-100 px-2 py-1 rounded text-blue-800">
+                                  {tenant.integrationApiKey.substring(0, 8)}...
+                                </span>
+                              ) : (
+                                <span className="font-mono text-xs bg-yellow-100 px-2 py-1 rounded text-yellow-800">
+                                  Not Generated
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-2">
                               <i className="fas fa-shield-alt text-gray-400"></i>
@@ -482,6 +513,20 @@ export default function Tenants() {
                         </div>
 
                         <div className="flex items-start gap-2 ml-4">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="text-green-600 hover:text-green-700"
+                            onClick={() => {
+                              if (confirm(`Generate new API key for ${tenant.name}? This will invalidate the existing key.`)) {
+                                generateApiKeyMutation.mutate(tenant.id);
+                              }
+                            }}
+                            disabled={generateApiKeyMutation.isPending}
+                          >
+                            <i className="fas fa-key mr-1"></i>
+                            {generateApiKeyMutation.isPending ? "Generating..." : "Generate API Key"}
+                          </Button>
                           <Button 
                             variant="outline" 
                             size="sm"

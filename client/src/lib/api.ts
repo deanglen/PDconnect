@@ -71,6 +71,10 @@ export const api = {
     return true;
   },
 
+  async generateTenantApiKey(tenantId: string) {
+    return await apiRequest(`/api/tenants/${tenantId}/generate-api-key`, "POST");
+  },
+
   // Field mappings
   async getFieldMappings(tenantId: string, module?: string) {
     const params = new URLSearchParams({ tenantId });

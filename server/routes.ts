@@ -637,6 +637,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate tenant API key
+  app.post("/api/tenants/:id/generate-api-key", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      
+      // Verify tenant exists
+      const tenant = await storage.getTenant(id);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      
+      // Generate new API key
+      const apiKey = await storage.generateTenantApiKey(id);
+      
+      res.json({ 
+        message: "Tenant API key generated successfully",
+        apiKey,
+        tenantId: id,
+        usage: "Use this API key for SugarCRM integration. SugarCRM can authenticate using: Authorization: Bearer " + apiKey
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to generate tenant API key" });
+    }
+  });
+
   app.post("/api/tenants", async (req: Request, res: Response) => {
     try {
       const validatedData = insertTenantSchema.parse(req.body);
@@ -780,9 +805,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const requestId = (req as any).requestId;
       
+      // Extract tenant info from authentication (if using tenant API key)
+      let tenantFromAuth: any = null;
+      if ((req as any).authType === 'tenant_api_key' && (req as any).tenant) {
+        tenantFromAuth = (req as any).tenant;
+      }
+      
       // Validate the request body
       const createDocumentRequest = z.object({
-        tenantId: z.string(),
+        tenantId: z.string().optional(), // Optional if using tenant API key
         sugarRecordId: z.string(),
         sugarModule: z.string(),
         templateId: z.string().optional(),
@@ -809,8 +840,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedData = createDocumentRequest.parse(req.body);
       
+      // Determine tenant ID - prefer auth tenant over request body
+      const tenantId = tenantFromAuth?.id || validatedData.tenantId;
+      if (!tenantId) {
+        return res.status(400).json({ 
+          message: "Tenant ID required. Either provide tenantId in request or use tenant API key authentication." 
+        });
+      }
+      
       // Get tenant information
-      const tenant = await storage.getTenant(validatedData.tenantId);
+      const tenant = tenantFromAuth || await storage.getTenant(tenantId);
       if (!tenant) {
         return res.status(404).json({ message: "Tenant not found" });
       }
@@ -840,7 +879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create the document using PandaDoc service
       const pandaDocRequest: SugarCRMDocumentRequest = {
-        tenantId: validatedData.tenantId,
+        tenantId: tenant.id,
         sugarRecordId: validatedData.sugarRecordId,
         sugarModule: validatedData.sugarModule,
         templateId: templateId,
@@ -861,7 +900,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Save document to database
       const documentData = {
-        tenantId: validatedData.tenantId,
+        tenantId: tenant.id,
         pandaDocId: pandaDocResponse.id,
         sugarRecordId: validatedData.sugarRecordId,
         sugarModule: validatedData.sugarModule,
@@ -873,7 +912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const savedDocument = await storage.createDocument(documentData);
 
       logger.info('Document created successfully', {
-        tenantId: validatedData.tenantId,
+        tenantId: tenant.id,
         requestId
       }, {
         documentId: pandaDocResponse.id,

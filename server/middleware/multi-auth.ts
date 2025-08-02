@@ -71,7 +71,21 @@ async function validateTokenAuth(req: Request, config: AuthConfig): Promise<bool
       return true;
     }
   } catch (error) {
-    console.error('Error validating API key:', error);
+    console.error('Error validating user API key:', error);
+  }
+  
+  // Finally check if it's a tenant integration API key
+  try {
+    const { storage } = await import("../storage");
+    const tenant = await storage.validateTenantApiKey(token);
+    if (tenant && tenant.isActive) {
+      // Attach tenant to request for downstream use
+      (req as any).tenant = tenant;
+      (req as any).authType = 'tenant_api_key';
+      return true;
+    }
+  } catch (error) {
+    console.error('Error validating tenant API key:', error);
   }
   
   return false;
