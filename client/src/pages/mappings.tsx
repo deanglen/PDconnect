@@ -19,15 +19,7 @@ import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 
-const formSchema = z.object({
-  tenantId: z.string().min(1, "Tenant is required"),
-  sugarModule: z.string().min(1, "Module is required"),
-  sugarField: z.string().min(1, "SugarCRM field is required"),
-  sugarFieldLabel: z.string().min(1, "Field label is required"),
-  sugarFieldType: z.string().min(1, "Field type is required"),
-  pandaDocToken: z.string().min(1, "PandaDoc token is required"),
-  isActive: z.boolean().default(true),
-});
+const formSchema = insertFieldMappingSchema;
 
 export default function Mappings() {
   const [selectedTenant, setSelectedTenant] = useState<string>("");
@@ -56,10 +48,12 @@ export default function Mappings() {
 
   const createMutation = useMutation({
     mutationFn: api.createFieldMapping,
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Mutation success, created mapping:', data);
       queryClient.invalidateQueries({ queryKey: ['/api/field-mappings'] });
       queryClient.invalidateQueries({ queryKey: ['/api/tokens'] });
       setIsDialogOpen(false);
+      form.reset();
       toast({
         title: "Success",
         description: "Field mapping created successfully",
@@ -93,8 +87,8 @@ export default function Mappings() {
     },
   });
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<z.infer<typeof insertFieldMappingSchema>>({
+    resolver: zodResolver(insertFieldMappingSchema),
     defaultValues: {
       tenantId: selectedTenant || "",
       sugarModule: activeModule || "",
@@ -112,7 +106,7 @@ export default function Mappings() {
     form.setValue('sugarModule', activeModule || "");
   }, [selectedTenant, activeModule, form]);
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
+  const onSubmit = (values: z.infer<typeof insertFieldMappingSchema>) => {
     console.log('Form submission triggered!');
     console.log('Form submission data:', {
       ...values,
