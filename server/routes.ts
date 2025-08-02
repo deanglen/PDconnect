@@ -826,6 +826,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get SugarCRM module fields for tenant
+  app.get("/api/tenants/:tenantId/sugarcrm/fields/:module", async (req: Request, res: Response) => {
+    try {
+      const { tenantId, module } = req.params;
+      const { filter } = req.query;
+      
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      const sugarCRMService = new SugarCRMService(tenant);
+      const filterType = filter === 'file_attachment' ? 'file_attachment' : 'all';
+      const fields = await sugarCRMService.getModuleFields(module, filterType);
+      
+      res.json(fields);
+    } catch (error: any) {
+      console.error(`Failed to fetch fields for module ${req.params.module}:`, error.message);
+      res.status(500).json({ 
+        message: "Failed to fetch module fields",
+        error: error.message,
+        fallbackFields: [
+          { name: 'filename', label: 'File Name', type: 'file', required: false },
+          { name: 'file_attachment', label: 'File Attachment', type: 'file', required: false }
+        ]
+      });
+    }
+  });
+
   // Field mapping endpoints
   app.get("/api/field-mappings", async (req: Request, res: Response) => {
     try {

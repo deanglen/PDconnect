@@ -122,7 +122,7 @@ export class SugarCRMService {
     }
   }
 
-  async getModuleFields(module: string): Promise<SugarCRMField[]> {
+  async getModuleFields(module: string, filterType?: 'file_attachment' | 'all'): Promise<SugarCRMField[]> {
     // For UAT testing, use mock schema if available - case insensitive lookup
     if (process.env.NODE_ENV === 'development') {
       const moduleKey = Object.keys(moduleSchemas).find(key => 
@@ -130,7 +130,30 @@ export class SugarCRMService {
       );
       if (moduleKey && moduleSchemas[moduleKey]) {
         console.log(`[UAT Mode] Using mock schema for ${module} module`);
-        return moduleSchemas[moduleKey];
+        let fields = moduleSchemas[moduleKey];
+        
+        // Filter for file attachment fields if requested
+        if (filterType === 'file_attachment') {
+          fields = fields.filter(field => 
+            ['file', 'image', 'upload', 'filename'].includes(field.type) ||
+            field.name.includes('file') ||
+            field.name.includes('attachment') ||
+            field.name.includes('document') ||
+            ['filename', 'file_attachment', 'document', 'attachment', 'upload_file'].includes(field.name)
+          );
+          
+          // Always include 'filename' for Notes module
+          if (module.toLowerCase() === 'notes' && !fields.find(f => f.name === 'filename')) {
+            fields.unshift({
+              name: 'filename',
+              label: 'File Name',
+              type: 'file',
+              required: false
+            });
+          }
+        }
+        
+        return fields;
       }
     }
 
@@ -139,25 +162,98 @@ export class SugarCRMService {
     try {
       const response = await this.client.get(`/${module}/fields`);
       const fields = response.data.fields || response.data;
-      return Object.values(fields).map((field: any) => ({
+      let allFields = Object.values(fields).map((field: any) => ({
         name: field.name,
         label: field.vname || field.label || field.name,
         type: field.type,
         required: field.required || false,
       }));
+
+      // Filter for file attachment fields if requested
+      if (filterType === 'file_attachment') {
+        let fileFields = allFields.filter((field: SugarCRMField) => 
+          ['file', 'image', 'upload', 'filename'].includes(field.type) ||
+          field.name.includes('file') ||
+          field.name.includes('attachment') ||
+          field.name.includes('document') ||
+          ['filename', 'file_attachment', 'document', 'attachment', 'upload_file'].includes(field.name)
+        );
+
+        // Always include 'filename' for Notes module
+        if (module.toLowerCase() === 'notes' && !fileFields.find(f => f.name === 'filename')) {
+          fileFields.unshift({
+            name: 'filename',
+            label: 'File Name',
+            type: 'file',
+            required: false
+          });
+        }
+
+        // If no file fields found, provide common fallbacks
+        if (fileFields.length === 0) {
+          fileFields = [
+            { name: 'filename', label: 'File Name', type: 'file', required: false },
+            { name: 'file_attachment', label: 'File Attachment', type: 'file', required: false }
+          ];
+        }
+
+        return fileFields;
+      }
+
+      return allFields;
     } catch (error: any) {
       if (error.response?.status === 401) {
         await this.refreshAccessToken();
         const retryResponse = await this.client.get(`/${module}/fields`);
         const fields = retryResponse.data.fields || retryResponse.data;
-        return Object.values(fields).map((field: any) => ({
+        let allFields = Object.values(fields).map((field: any) => ({
           name: field.name,
           label: field.vname || field.label || field.name,
           type: field.type,
           required: field.required || false,
         }));
+
+        if (filterType === 'file_attachment') {
+          let fileFields = allFields.filter((field: SugarCRMField) => 
+            ['file', 'image', 'upload', 'filename'].includes(field.type) ||
+            field.name.includes('file') ||
+            field.name.includes('attachment') ||
+            field.name.includes('document') ||
+            ['filename', 'file_attachment', 'document', 'attachment', 'upload_file'].includes(field.name)
+          );
+
+          if (module.toLowerCase() === 'notes' && !fileFields.find(f => f.name === 'filename')) {
+            fileFields.unshift({
+              name: 'filename',
+              label: 'File Name',
+              type: 'file',
+              required: false
+            });
+          }
+
+          if (fileFields.length === 0) {
+            fileFields = [
+              { name: 'filename', label: 'File Name', type: 'file', required: false },
+              { name: 'file_attachment', label: 'File Attachment', type: 'file', required: false }
+            ];
+          }
+
+          return fileFields;
+        }
+
+        return allFields;
       }
       const errorMessage = error.response?.data?.error_message || error.message;
+      
+      // Return fallback fields for file attachments
+      if (filterType === 'file_attachment') {
+        console.error(`Failed to fetch fields for module ${module}:`, errorMessage);
+        return [
+          { name: 'filename', label: 'File Name', type: 'file', required: false },
+          { name: 'file_attachment', label: 'File Attachment', type: 'file', required: false }
+        ];
+      }
+      
       throw new Error(`Failed to fetch ${module} fields: ${errorMessage}`);
     }
   }

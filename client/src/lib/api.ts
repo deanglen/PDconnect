@@ -61,6 +61,14 @@ export const api = {
     return await apiRequest(`/api/sugarcrm/${module}/fields?${params}`);
   },
 
+  // SugarCRM Module Fields
+  async getSugarCRMFields(tenantId: string, module: string, filter?: 'file_attachment' | 'all') {
+    const params = new URLSearchParams();
+    if (filter) params.append('filter', filter);
+    
+    return await apiRequest(`/api/tenants/${tenantId}/sugarcrm/fields/${module}?${params}`);
+  },
+
   // Test Mapping
   async testMapping(data: {
     tenantId: string;

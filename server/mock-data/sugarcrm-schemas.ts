@@ -105,8 +105,112 @@ export const mockOpportunityRecords = {
   }
 };
 
+export const notesSchema = [
+  {
+    "name": "id",
+    "label": "ID",
+    "type": "id",
+    "required": true
+  },
+  {
+    "name": "name",
+    "label": "Subject",
+    "type": "varchar",
+    "required": true
+  },
+  {
+    "name": "filename",
+    "label": "File Name",
+    "type": "file",
+    "required": false
+  },
+  {
+    "name": "file_attachment",
+    "label": "File Attachment",
+    "type": "file",
+    "required": false
+  },
+  {
+    "name": "file_mime_type",
+    "label": "File MIME Type",
+    "type": "varchar",
+    "required": false
+  },
+  {
+    "name": "uploadfile",
+    "label": "Upload File",
+    "type": "file",
+    "required": false
+  },
+  {
+    "name": "description",
+    "label": "Description",
+    "type": "text",
+    "required": false
+  },
+  {
+    "name": "parent_type",
+    "label": "Parent Type",
+    "type": "varchar",
+    "required": false
+  },
+  {
+    "name": "parent_id",
+    "label": "Parent ID",
+    "type": "id",
+    "required": false
+  }
+];
+
+export const documentsSchema = [
+  {
+    "name": "id",
+    "label": "ID",
+    "type": "id",
+    "required": true
+  },
+  {
+    "name": "document_name",
+    "label": "Document Name",
+    "type": "varchar",
+    "required": true
+  },
+  {
+    "name": "filename",
+    "label": "File Name",
+    "type": "file",
+    "required": false
+  },
+  {
+    "name": "uploadfile",
+    "label": "Upload File",
+    "type": "file",
+    "required": false
+  },
+  {
+    "name": "file_attachment",
+    "label": "File Attachment",
+    "type": "file", 
+    "required": false
+  },
+  {
+    "name": "doc_type",
+    "label": "Document Type",
+    "type": "enum",
+    "required": false
+  },
+  {
+    "name": "category_id",
+    "label": "Category",
+    "type": "enum",
+    "required": false
+  }
+];
+
 export const moduleSchemas: Record<string, any[]> = {
   "Opportunities": opportunitySchema,
+  "Notes": notesSchema,
+  "Documents": documentsSchema,
   // Can add more modules as needed
 };
 

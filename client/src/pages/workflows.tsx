@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/topbar";
 import { Button } from "@/components/ui/button";
@@ -87,19 +87,109 @@ interface WorkflowData {
   configMode: 'point_click' | 'json';
 }
 
+// Dynamic Field Name Dropdown Component
+function FieldNameDropdown({ 
+  tenantId, 
+  module, 
+  value, 
+  onChange, 
+  placeholder = "Select field" 
+}: {
+  tenantId?: string;
+  module?: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  const { data: fields, isLoading } = useQuery({
+    queryKey: [`/api/tenants/${tenantId}/sugarcrm/fields/${module}`, 'file_attachment'],
+    enabled: !!tenantId && !!module,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append('filter', 'file_attachment');
+      const response = await fetch(`/api/tenants/${tenantId}/sugarcrm/fields/${module}?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('apiKey') || 'demo-admin-token-2025'}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch fields: ${response.statusText}`);
+      }
+      return response.json();
+    }
+  });
+
+  // If no tenant/module selected or loading, show manual input
+  if (!tenantId || !module || isLoading) {
+    return (
+      <Input
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  }
+
+  // If API call failed or no fields returned, show manual input with fallback
+  if (!fields || fields.length === 0) {
+    return (
+      <div className="space-y-2">
+        <Input
+          placeholder="filename (standard for Notes)"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <p className="text-xs text-gray-500">
+          Unable to load fields. Use "filename" for Notes or manual entry.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger>
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          {fields.map((field: any) => (
+            <SelectItem key={field.name} value={field.name}>
+              <div className="flex flex-col">
+                <span className="font-medium">{field.label}</span>
+                <span className="text-xs text-gray-500">
+                  {field.name} ({field.type})
+                </span>
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="text-xs text-gray-500">
+        {fields.length} file attachment field(s) available
+      </p>
+    </div>
+  );
+}
+
 // Workflow Editor Component
 function WorkflowEditor({ 
   configMode, 
   setConfigMode, 
   editingWorkflow, 
   onSave, 
-  isLoading 
+  isLoading,
+  selectedTenant,
+  tenants
 }: {
   configMode: 'point_click' | 'json';
   setConfigMode: (mode: 'point_click' | 'json') => void;
   editingWorkflow?: any;
   onSave: (data: any) => void;
   isLoading: boolean;
+  selectedTenant?: string;
+  tenants?: any[];
 }) {
   const [workflowData, setWorkflowData] = useState<WorkflowData>({
     name: editingWorkflow?.name || '',
@@ -778,10 +868,12 @@ function WorkflowEditor({
                         <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
                           Field Name
                         </Label>
-                        <Input
-                          placeholder="filename (for Notes) or file_attachment"
+                        <FieldNameDropdown
+                          tenantId={selectedTenant}
+                          module={action.module}
                           value={action.field || ''}
-                          onChange={(e) => updateAction('then', index, 'field', e.target.value)}
+                          onChange={(value) => updateAction('then', index, 'field', value)}
+                          placeholder="Select field for file attachment"
                         />
                       </div>
                       <div>
@@ -1090,10 +1182,12 @@ function WorkflowEditor({
                           <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
                             Field Name
                           </Label>
-                          <Input
-                            placeholder="filename (for Notes) or file_attachment"
+                          <FieldNameDropdown
+                            tenantId={selectedTenant}
+                            module={action.module}
                             value={action.field || ''}
-                            onChange={(e) => updateAction('else', index, 'field', e.target.value)}
+                            onChange={(value) => updateAction('else', index, 'field', value)}
+                            placeholder="Select field for file attachment"
                           />
                         </div>
                         <div>
@@ -1498,6 +1592,8 @@ export default function Workflows() {
                   editingWorkflow={editingWorkflow}
                   onSave={handleSaveWorkflow}
                   isLoading={createWorkflow.isPending || updateWorkflow.isPending}
+                  selectedTenant={selectedTenant}
+                  tenants={tenants}
                 />
               </DialogContent>
             </Dialog>
