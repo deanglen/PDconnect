@@ -6,7 +6,7 @@ import {
   type DocumentTemplate, type InsertDocumentTemplate
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, ilike } from "drizzle-orm";
 
 export interface IStorage {
   // User methods  
@@ -219,9 +219,8 @@ export class DatabaseStorage implements IStorage {
   async getFieldMappings(tenantId: string, module?: string): Promise<FieldMapping[]> {
     const conditions = [eq(fieldMappings.tenantId, tenantId)];
     if (module) {
-      // Make module comparison case-insensitive by capitalizing first letter
-      const normalizedModule = module.charAt(0).toUpperCase() + module.slice(1);
-      conditions.push(eq(fieldMappings.sugarModule, normalizedModule));
+      // Use case-insensitive matching with lower() function
+      conditions.push(sql`lower(${fieldMappings.sugarModule}) = ${module.toLowerCase()}`);
     }
     return await db.select().from(fieldMappings).where(and(...conditions));
   }
