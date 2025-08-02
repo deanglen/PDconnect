@@ -93,21 +93,25 @@ function FieldNameDropdown({
   module, 
   value, 
   onChange, 
-  placeholder = "Select field" 
+  placeholder = "Select field",
+  filterType = "file_attachment"
 }: {
   tenantId?: string;
   module?: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  filterType?: "file_attachment" | "all";
 }) {
   const { data: fields, isLoading } = useQuery({
-    queryKey: [`/api/tenants/${tenantId}/sugarcrm/fields/${module}`, 'file_attachment'],
+    queryKey: [`/api/tenants/${tenantId}/sugarcrm/fields/${module}`, filterType],
     enabled: !!tenantId && !!module,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     queryFn: async () => {
       const params = new URLSearchParams();
-      params.append('filter', 'file_attachment');
+      if (filterType !== "all") {
+        params.append('filter', filterType);
+      }
       const response = await fetch(`/api/tenants/${tenantId}/sugarcrm/fields/${module}?${params}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('apiKey') || 'demo-admin-token-2025'}`
@@ -756,10 +760,13 @@ function WorkflowEditor({
                       <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
                         Field Name
                       </Label>
-                      <Input
-                        placeholder="e.g., sales_stage"
+                      <FieldNameDropdown
+                        tenantId={selectedTenant}
+                        module={action.module}
                         value={action.field || ''}
-                        onChange={(e) => updateAction('then', index, 'field', e.target.value)}
+                        onChange={(value) => updateAction('then', index, 'field', value)}
+                        placeholder="Select field to update"
+                        filterType="all"
                       />
                     </div>
                     <div>
@@ -1070,10 +1077,13 @@ function WorkflowEditor({
                         <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
                           Field Name
                         </Label>
-                        <Input
-                          placeholder="e.g., sales_stage"
+                        <FieldNameDropdown
+                          tenantId={selectedTenant}
+                          module={action.module}
                           value={action.field || ''}
-                          onChange={(e) => updateAction('else', index, 'field', e.target.value)}
+                          onChange={(value) => updateAction('else', index, 'field', value)}
+                          placeholder="Select field to update"
+                          filterType="all"
                         />
                       </div>
                       <div>
