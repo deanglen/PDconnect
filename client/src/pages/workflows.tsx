@@ -255,9 +255,9 @@ function WorkflowEditor({
       ...prev,
       ifThenElseRules: {
         ...prev.ifThenElseRules,
-        if: prev.ifThenElseRules.if.map((condition: WorkflowCondition, i: number) => 
+        if: prev.ifThenElseRules.if?.map((condition: WorkflowCondition, i: number) => 
           i === index ? { ...condition, [field]: value } : condition
-        )
+        ) || []
       }
     }));
   };
@@ -267,9 +267,9 @@ function WorkflowEditor({
       ...prev,
       ifThenElseRules: {
         ...prev.ifThenElseRules,
-        [actionType]: prev.ifThenElseRules[actionType].map((action: WorkflowAction, i: number) => 
+        [actionType]: prev.ifThenElseRules[actionType]?.map((action: WorkflowAction, i: number) => 
           i === index ? { ...action, [field]: value } : action
-        )
+        ) || []
       }
     }));
   };
@@ -469,7 +469,7 @@ function WorkflowEditor({
                 </div>
             
                 <div className="space-y-3">
-                  {workflowData.ifThenElseRules.if.length === 0 && (
+                  {(!workflowData.ifThenElseRules.if || workflowData.ifThenElseRules.if.length === 0) && (
                     <div className="text-center py-8 text-gray-500 bg-gray-50 dark:bg-gray-900/20 rounded-lg border-2 border-dashed">
                       <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p>No conditions set - workflow will run for all events</p>
@@ -477,7 +477,7 @@ function WorkflowEditor({
                     </div>
                   )}
                   
-                  {workflowData.ifThenElseRules.if.map((condition: WorkflowCondition, index: number) => (
+                  {workflowData.ifThenElseRules.if?.map((condition: WorkflowCondition, index: number) => (
                     <div key={index} className="relative">
                       {/* Show AND/OR connector only between conditions (not before first condition) */}
                       {index > 0 && (
@@ -576,7 +576,7 @@ function WorkflowEditor({
                                 ...prev,
                                 ifThenElseRules: {
                                   ...prev.ifThenElseRules,
-                                  if: prev.ifThenElseRules.if.filter((_: WorkflowCondition, i: number) => i !== index)
+                                  if: prev.ifThenElseRules.if?.filter((_: WorkflowCondition, i: number) => i !== index) || []
                                 }
                               }));
                             }}
@@ -603,7 +603,7 @@ function WorkflowEditor({
               </Button>
             </div>
             
-            {workflowData.ifThenElseRules.then.map((action: WorkflowAction, index: number) => (
+            {workflowData.ifThenElseRules.then?.map((action: WorkflowAction, index: number) => (
               <div key={index} className="grid grid-cols-5 gap-2 mb-2">
                 <Select
                   value={action.type}
@@ -763,7 +763,7 @@ function WorkflowEditor({
                       ...prev,
                       ifThenElseRules: {
                         ...prev.ifThenElseRules,
-                        then: prev.ifThenElseRules.then.filter((_: WorkflowAction, i: number) => i !== index)
+                        then: prev.ifThenElseRules.then?.filter((_: WorkflowAction, i: number) => i !== index) || []
                       }
                     }));
                   }}
@@ -784,7 +784,7 @@ function WorkflowEditor({
               </Button>
             </div>
             
-            {workflowData.ifThenElseRules.else.map((action: WorkflowAction, index: number) => (
+            {workflowData.ifThenElseRules.else?.map((action: WorkflowAction, index: number) => (
               <div key={index} className="grid grid-cols-5 gap-2 mb-2">
                 <Select
                   value={action.type}
@@ -912,7 +912,7 @@ function WorkflowEditor({
                       ...prev,
                       ifThenElseRules: {
                         ...prev.ifThenElseRules,
-                        else: prev.ifThenElseRules.else.filter((_: WorkflowAction, i: number) => i !== index)
+                        else: prev.ifThenElseRules.else?.filter((_: WorkflowAction, i: number) => i !== index) || []
                       }
                     }));
                   }}
