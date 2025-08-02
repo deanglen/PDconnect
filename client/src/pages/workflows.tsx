@@ -499,6 +499,9 @@ function WorkflowEditor({
                       
                       <div className="grid grid-cols-12 gap-2 p-3 bg-gray-50 dark:bg-gray-900/20 rounded-lg border">
                         <div className="col-span-4">
+                          <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                            Field
+                          </Label>
                           <Select
                             value={condition.field}
                             onValueChange={(value) => updateCondition(index, 'field', value)}
@@ -520,6 +523,9 @@ function WorkflowEditor({
                         </div>
                         
                         <div className="col-span-3">
+                          <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                            Operator
+                          </Label>
                           <Select
                             value={condition.operator}
                             onValueChange={(value) => updateCondition(index, 'operator', value)}
@@ -538,6 +544,9 @@ function WorkflowEditor({
                         </div>
                         
                         <div className="col-span-4">
+                          <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                            Value
+                          </Label>
                           {condition.field === 'data.status' ? (
                             <Select
                               value={condition.value}
@@ -604,14 +613,19 @@ function WorkflowEditor({
             </div>
             
             {workflowData.ifThenElseRules.then?.map((action: WorkflowAction, index: number) => (
-              <div key={index} className="grid grid-cols-5 gap-2 mb-2">
-                <Select
-                  value={action.type}
-                  onValueChange={(value) => updateAction('then', index, 'type', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+              <div key={index} className="space-y-2 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 mb-3">
+                <div className="grid grid-cols-5 gap-3">
+                  <div>
+                    <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                      Action Type
+                    </Label>
+                    <Select
+                      value={action.type}
+                      onValueChange={(value) => updateAction('then', index, 'type', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                   <SelectContent>
                     {actionTypes.map(type => (
                       <SelectItem key={type.value} value={type.value}>
@@ -620,139 +634,217 @@ function WorkflowEditor({
                     ))}
                   </SelectContent>
                 </Select>
+                  </div>
+                </div>
+                
                 {/* Update Record Action */}
                 {action.type === 'update_record' && (
-                  <>
-                    <Select
-                      value={action.module || ''}
-                      onValueChange={(value) => updateAction('then', index, 'module', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Module" />
-                      </SelectTrigger>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        Module
+                      </Label>
+                      <Select
+                        value={action.module || ''}
+                        onValueChange={(value) => updateAction('then', index, 'module', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Module" />
+                        </SelectTrigger>
                       <SelectContent>
                         {sugarModules.map(module => (
                           <SelectItem key={module.value} value={module.value}>
                             {module.label}
                           </SelectItem>
                         ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      placeholder="Field name (e.g., sales_stage)"
-                      value={action.field || ''}
-                      onChange={(e) => updateAction('then', index, 'field', e.target.value)}
-                    />
-                    <Input
-                      placeholder="New value (e.g., Closed Won)"
-                      value={action.value || ''}
-                      onChange={(e) => updateAction('then', index, 'value', e.target.value)}
-                    />
-                  </>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        Field Name
+                      </Label>
+                      <Input
+                        placeholder="e.g., sales_stage"
+                        value={action.field || ''}
+                        onChange={(e) => updateAction('then', index, 'field', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        New Value
+                      </Label>
+                      <Input
+                        placeholder="e.g., Closed Won"
+                        value={action.value || ''}
+                        onChange={(e) => updateAction('then', index, 'value', e.target.value)}
+                      />
+                    </div>
+                  </div>
                 )}
                 
                 {/* Create Note Action */}
                 {(action.type === 'create_note' || action.type === 'create_task' || action.type === 'create_call' || action.type === 'create_meeting') && (
-                  <>
-                    <Input
-                      placeholder="Name/Subject"
-                      value={action.name || ''}
-                      onChange={(e) => updateAction('then', index, 'name', e.target.value)}
-                    />
-                    <Input
-                      placeholder="Description"
-                      value={action.description || ''}
-                      onChange={(e) => updateAction('then', index, 'description', e.target.value)}
-                    />
-                    <Input
-                      placeholder="Related Module (optional)"
-                      value={action.module || ''}
-                      onChange={(e) => updateAction('then', index, 'module', e.target.value)}
-                    />
-                  </>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        Subject
+                      </Label>
+                      <Input
+                        placeholder="Enter subject"
+                        value={action.name || ''}
+                        onChange={(e) => updateAction('then', index, 'name', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        Description
+                      </Label>
+                      <Input
+                        placeholder="Enter description"
+                        value={action.description || ''}
+                        onChange={(e) => updateAction('then', index, 'description', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        Related Module
+                      </Label>
+                      <Input
+                        placeholder="Optional"
+                        value={action.module || ''}
+                        onChange={(e) => updateAction('then', index, 'module', e.target.value)}
+                      />
+                    </div>
+                  </div>
                 )}
                 
                 {/* Attach File Action */}
                 {action.type === 'attach_file' && (
-                  <>
-                    <Select
-                      value={action.module || ''}
-                      onValueChange={(value) => updateAction('then', index, 'module', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Target Module" />
-                      </SelectTrigger>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        Target Module
+                      </Label>
+                      <Select
+                        value={action.module || ''}
+                        onValueChange={(value) => updateAction('then', index, 'module', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Module" />
+                        </SelectTrigger>
                       <SelectContent>
                         {sugarModules.map(module => (
                           <SelectItem key={module.value} value={module.value}>
                             {module.label}
                           </SelectItem>
                         ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      placeholder="Field name (e.g., filename)"
-                      value={action.field || ''}
-                      onChange={(e) => updateAction('then', index, 'field', e.target.value)}
-                    />
-                    <Input
-                      placeholder="File source (PandaDoc document)"
-                      value={action.source || 'pandadoc_document'}
-                      onChange={(e) => updateAction('then', index, 'source', e.target.value)}
-                    />
-                  </>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        Field Name
+                      </Label>
+                      <Input
+                        placeholder="e.g., filename"
+                        value={action.field || ''}
+                        onChange={(e) => updateAction('then', index, 'field', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        File Source
+                      </Label>
+                      <Input
+                        placeholder="PandaDoc document"
+                        value={action.source || 'pandadoc_document'}
+                        onChange={(e) => updateAction('then', index, 'source', e.target.value)}
+                      />
+                    </div>
+                  </div>
                 )}
                 
                 {/* Send Email Action */}
                 {action.type === 'send_email' && (
-                  <>
-                    <Input
-                      placeholder="To email address"
-                      value={action.to_email || ''}
-                      onChange={(e) => updateAction('then', index, 'to_email', e.target.value)}
-                    />
-                    <Input
-                      placeholder="Subject"
-                      value={action.subject || ''}
-                      onChange={(e) => updateAction('then', index, 'subject', e.target.value)}
-                    />
-                    <Input
-                      placeholder="Message body"
-                      value={action.body || ''}
-                      onChange={(e) => updateAction('then', index, 'body', e.target.value)}
-                    />
-                  </>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        To Email
+                      </Label>
+                      <Input
+                        placeholder="recipient@example.com"
+                        value={action.to_email || ''}
+                        onChange={(e) => updateAction('then', index, 'to_email', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        Subject
+                      </Label>
+                      <Input
+                        placeholder="Email subject"
+                        value={action.subject || ''}
+                        onChange={(e) => updateAction('then', index, 'subject', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        Message Body
+                      </Label>
+                      <Input
+                        placeholder="Email content"
+                        value={action.body || ''}
+                        onChange={(e) => updateAction('then', index, 'body', e.target.value)}
+                      />
+                    </div>
+                  </div>
                 )}
                 
                 {/* Create Relationship Action */}
                 {action.type === 'create_relationship' && (
-                  <>
-                    <Select
-                      value={action.source_module || ''}
-                      onValueChange={(value) => updateAction('then', index, 'source_module', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Source Module" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sugarModules.map(module => (
-                          <SelectItem key={module.value} value={module.value}>
-                            {module.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      placeholder="Link name (e.g., accounts)"
-                      value={action.link_name || ''}
-                      onChange={(e) => updateAction('then', index, 'link_name', e.target.value)}
-                    />
-                    <Input
-                      placeholder="Target record ID"
-                      value={action.target_id || ''}
-                      onChange={(e) => updateAction('then', index, 'target_id', e.target.value)}
-                    />
-                  </>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        Source Module
+                      </Label>
+                      <Select
+                        value={action.source_module || ''}
+                        onValueChange={(value) => updateAction('then', index, 'source_module', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Module" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sugarModules.map(module => (
+                            <SelectItem key={module.value} value={module.value}>
+                              {module.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        Link Name
+                      </Label>
+                      <Input
+                        placeholder="e.g., accounts"
+                        value={action.link_name || ''}
+                        onChange={(e) => updateAction('then', index, 'link_name', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        Target Record ID
+                      </Label>
+                      <Input
+                        placeholder="Record ID"
+                        value={action.target_id || ''}
+                        onChange={(e) => updateAction('then', index, 'target_id', e.target.value)}
+                      />
+                    </div>
+                  </div>
                 )}
                 <Button
                   type="button"
@@ -775,152 +867,240 @@ function WorkflowEditor({
           </div>
 
           {/* ELSE Actions */}
-          <div className="border rounded-lg p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">ELSE Actions (Optional)</h3>
-              <Button type="button" variant="outline" size="sm" onClick={() => addAction('else')}>
-                <i className="fas fa-plus mr-2"></i>
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold">ELSE Actions (Optional)</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">What should happen when conditions are NOT met?</p>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => addAction('else')} className="ml-auto">
+                <Plus className="h-4 w-4 mr-1" />
                 Add Action
               </Button>
             </div>
             
-            {workflowData.ifThenElseRules.else?.map((action: WorkflowAction, index: number) => (
-              <div key={index} className="grid grid-cols-5 gap-2 mb-2">
-                <Select
-                  value={action.type}
-                  onValueChange={(value) => updateAction('else', index, 'type', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {actionTypes.map(type => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {/* Update Record Action */}
-                {action.type === 'update_record' && (
-                  <>
-                    <Select
-                      value={action.module || ''}
-                      onValueChange={(value) => updateAction('else', index, 'module', value)}
+            <div className="space-y-3">
+              {(!workflowData.ifThenElseRules.else || workflowData.ifThenElseRules.else.length === 0) && (
+                <div className="text-center py-8 text-gray-500 bg-gray-50 dark:bg-gray-900/20 rounded-lg border-2 border-dashed">
+                  <XCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No alternative actions set</p>
+                  <p className="text-xs">Add actions to execute when conditions fail</p>
+                </div>
+              )}
+              
+              {workflowData.ifThenElseRules.else?.map((action: WorkflowAction, index: number) => (
+                <div key={index} className="space-y-2 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                  <div className="grid grid-cols-5 gap-3">
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        Action Type
+                      </Label>
+                      <Select
+                        value={action.type}
+                        onValueChange={(value) => updateAction('else', index, 'type', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {actionTypes.map(type => (
+                            <SelectItem key={type.value} value={type.value}>
+                              {type.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  {/* Update Record Action */}
+                  {action.type === 'update_record' && (
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                          Module
+                        </Label>
+                        <Select
+                          value={action.module || ''}
+                          onValueChange={(value) => updateAction('else', index, 'module', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Module" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sugarModules.map(module => (
+                              <SelectItem key={module.value} value={module.value}>
+                                {module.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                          Field Name
+                        </Label>
+                        <Input
+                          placeholder="e.g., sales_stage"
+                          value={action.field || ''}
+                          onChange={(e) => updateAction('else', index, 'field', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                          New Value
+                        </Label>
+                        <Input
+                          placeholder="e.g., Closed Lost"
+                          value={action.value || ''}
+                          onChange={(e) => updateAction('else', index, 'value', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Create Note/Task/Call/Meeting Actions */}
+                  {(action.type === 'create_note' || action.type === 'create_task' || action.type === 'create_call' || action.type === 'create_meeting') && (
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                          Subject
+                        </Label>
+                        <Input
+                          placeholder="Enter subject"
+                          value={action.name || ''}
+                          onChange={(e) => updateAction('else', index, 'name', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                          Description
+                        </Label>
+                        <Input
+                          placeholder="Enter description"
+                          value={action.description || ''}
+                          onChange={(e) => updateAction('else', index, 'description', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                          Related Module
+                        </Label>
+                        <Input
+                          placeholder="Optional"
+                          value={action.module || ''}
+                          onChange={(e) => updateAction('else', index, 'module', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Attach File Action */}
+                  {action.type === 'attach_file' && (
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                          Target Module
+                        </Label>
+                        <Select
+                          value={action.module || ''}
+                          onValueChange={(value) => updateAction('else', index, 'module', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Module" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sugarModules.map(module => (
+                              <SelectItem key={module.value} value={module.value}>
+                                {module.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                          Field Name
+                        </Label>
+                        <Input
+                          placeholder="e.g., filename"
+                          value={action.field || ''}
+                          onChange={(e) => updateAction('else', index, 'field', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                          File Source
+                        </Label>
+                        <Input
+                          placeholder="PandaDoc document"
+                          value={action.source || 'pandadoc_document'}
+                          onChange={(e) => updateAction('else', index, 'source', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Send Email Action */}
+                  {action.type === 'send_email' && (
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                          To Email
+                        </Label>
+                        <Input
+                          placeholder="recipient@example.com"
+                          value={action.to_email || ''}
+                          onChange={(e) => updateAction('else', index, 'to_email', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                          Subject
+                        </Label>
+                        <Input
+                          placeholder="Email subject"
+                          value={action.subject || ''}
+                          onChange={(e) => updateAction('else', index, 'subject', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                          Message Body
+                        </Label>
+                        <Input
+                          placeholder="Email content"
+                          value={action.body || ''}
+                          onChange={(e) => updateAction('else', index, 'body', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600 hover:bg-red-50"
+                      onClick={() => {
+                        setWorkflowData(prev => ({
+                          ...prev,
+                          ifThenElseRules: {
+                            ...prev.ifThenElseRules,
+                            else: prev.ifThenElseRules.else?.filter((_: WorkflowAction, i: number) => i !== index) || []
+                          }
+                        }));
+                      }}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Module" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sugarModules.map(module => (
-                          <SelectItem key={module.value} value={module.value}>
-                            {module.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      placeholder="Field name (e.g., sales_stage)"
-                      value={action.field || ''}
-                      onChange={(e) => updateAction('else', index, 'field', e.target.value)}
-                    />
-                    <Input
-                      placeholder="New value (e.g., Closed Lost)"
-                      value={action.value || ''}
-                      onChange={(e) => updateAction('else', index, 'value', e.target.value)}
-                    />
-                  </>
-                )}
-                
-                {/* Create Activity Actions */}
-                {(action.type === 'create_note' || action.type === 'create_task' || action.type === 'create_call' || action.type === 'create_meeting') && (
-                  <>
-                    <Input
-                      placeholder="Name/Subject"
-                      value={action.name || ''}
-                      onChange={(e) => updateAction('else', index, 'name', e.target.value)}
-                    />
-                    <Input
-                      placeholder="Description"
-                      value={action.description || ''}
-                      onChange={(e) => updateAction('else', index, 'description', e.target.value)}
-                    />
-                    <Input
-                      placeholder="Related Module (optional)"
-                      value={action.module || ''}
-                      onChange={(e) => updateAction('else', index, 'module', e.target.value)}
-                    />
-                  </>
-                )}
-                
-                {/* Other action types with similar patterns... */}
-                {action.type === 'attach_file' && (
-                  <>
-                    <Select
-                      value={action.module || ''}
-                      onValueChange={(value) => updateAction('else', index, 'module', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Target Module" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sugarModules.map(module => (
-                          <SelectItem key={module.value} value={module.value}>
-                            {module.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      placeholder="Field name (e.g., filename)"
-                      value={action.field || ''}
-                      onChange={(e) => updateAction('else', index, 'field', e.target.value)}
-                    />
-                    <Input
-                      placeholder="File source"
-                      value={action.source || 'pandadoc_document'}
-                      onChange={(e) => updateAction('else', index, 'source', e.target.value)}
-                    />
-                  </>
-                )}
-                
-                {action.type === 'send_email' && (
-                  <>
-                    <Input
-                      placeholder="To email address"
-                      value={action.to_email || ''}
-                      onChange={(e) => updateAction('else', index, 'to_email', e.target.value)}
-                    />
-                    <Input
-                      placeholder="Subject"
-                      value={action.subject || ''}
-                      onChange={(e) => updateAction('else', index, 'subject', e.target.value)}
-                    />
-                    <Input
-                      placeholder="Message body"
-                      value={action.body || ''}
-                      onChange={(e) => updateAction('else', index, 'body', e.target.value)}
-                    />
-                  </>
-                )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setWorkflowData(prev => ({
-                      ...prev,
-                      ifThenElseRules: {
-                        ...prev.ifThenElseRules,
-                        else: prev.ifThenElseRules.else?.filter((_: WorkflowAction, i: number) => i !== index) || []
-                      }
-                    }));
-                  }}
-                >
-                  <i className="fas fa-trash"></i>
-                </Button>
-              </div>
-            ))}
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
               {/* Advanced Settings */}
