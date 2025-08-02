@@ -734,47 +734,68 @@ export default function Tenants() {
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">Integration API Key</label>
-                        <div className="flex items-center gap-2">
+                        <div className="space-y-2">
                           {viewingTenant.integrationApiKey ? (
                             <>
-                              <span className="font-mono text-xs bg-blue-100 px-2 py-1 rounded text-blue-800">
-                                {viewingTenant.integrationApiKey.substring(0, 8)}...
-                              </span>
-                              <Badge variant="default">Generated</Badge>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => {
-                                  if (confirm(`Generate new API key for ${viewingTenant.name}? This will invalidate the existing key.`)) {
-                                    generateApiKeyMutation.mutate(viewingTenant.id);
-                                  }
-                                }}
-                                disabled={generateApiKeyMutation.isPending}
-                                className="text-green-600 hover:text-green-700"
-                              >
-                                <i className="fas fa-key mr-1"></i>
-                                {generateApiKeyMutation.isPending ? "Generating..." : "Regenerate"}
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 font-mono text-xs bg-blue-50 border border-blue-200 px-3 py-2 rounded text-blue-900 break-all">
+                                  {viewingTenant.integrationApiKey}
+                                </div>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(viewingTenant.integrationApiKey);
+                                    toast({
+                                      title: "Copied",
+                                      description: "API key copied to clipboard",
+                                    });
+                                  }}
+                                  className="text-blue-600 hover:text-blue-700"
+                                >
+                                  <i className="fas fa-copy mr-1"></i>
+                                  Copy
+                                </Button>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="default">Generated</Badge>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    if (confirm(`Generate new API key for ${viewingTenant.name}? This will invalidate the existing key.`)) {
+                                      generateApiKeyMutation.mutate(viewingTenant.id);
+                                    }
+                                  }}
+                                  disabled={generateApiKeyMutation.isPending}
+                                  className="text-green-600 hover:text-green-700"
+                                >
+                                  <i className="fas fa-key mr-1"></i>
+                                  {generateApiKeyMutation.isPending ? "Generating..." : "Regenerate"}
+                                </Button>
+                              </div>
                             </>
                           ) : (
                             <>
-                              <span className="font-mono text-xs bg-yellow-100 px-2 py-1 rounded text-yellow-800">
-                                Not Generated
-                              </span>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => {
-                                  if (confirm(`Generate API key for ${viewingTenant.name}?`)) {
-                                    generateApiKeyMutation.mutate(viewingTenant.id);
-                                  }
-                                }}
-                                disabled={generateApiKeyMutation.isPending}
-                                className="text-green-600 hover:text-green-700"
-                              >
-                                <i className="fas fa-key mr-1"></i>
-                                {generateApiKeyMutation.isPending ? "Generating..." : "Generate"}
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs bg-yellow-100 px-2 py-1 rounded text-yellow-800">
+                                  Not Generated
+                                </span>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    if (confirm(`Generate API key for ${viewingTenant.name}?`)) {
+                                      generateApiKeyMutation.mutate(viewingTenant.id);
+                                    }
+                                  }}
+                                  disabled={generateApiKeyMutation.isPending}
+                                  className="text-green-600 hover:text-green-700"
+                                >
+                                  <i className="fas fa-key mr-1"></i>
+                                  {generateApiKeyMutation.isPending ? "Generating..." : "Generate"}
+                                </Button>
+                              </div>
                             </>
                           )}
                         </div>
@@ -820,11 +841,49 @@ export default function Tenants() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">SugarCRM Integration Usage</h3>
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <p className="text-sm text-gray-600 mb-2">Use this API key in SugarCRM for document creation:</p>
-                      <div className="bg-white border rounded p-3 font-mono text-xs">
-                        <div className="text-gray-500">// HTTP Header</div>
-                        <div>Authorization: Bearer {viewingTenant.integrationApiKey}</div>
-                        <div className="mt-2 text-gray-500">// Endpoint</div>
-                        <div>POST /api/documents/create</div>
+                      <div className="bg-white border rounded p-3 font-mono text-xs space-y-2">
+                        <div>
+                          <div className="text-gray-500">// HTTP Header</div>
+                          <div className="flex items-center gap-2">
+                            <span className="flex-1">Authorization: Bearer {viewingTenant.integrationApiKey}</span>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                navigator.clipboard.writeText(`Authorization: Bearer ${viewingTenant.integrationApiKey}`);
+                                toast({
+                                  title: "Copied",
+                                  description: "Authorization header copied to clipboard",
+                                });
+                              }}
+                              className="text-blue-600 hover:text-blue-700 text-xs"
+                            >
+                              <i className="fas fa-copy mr-1"></i>
+                              Copy
+                            </Button>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-500">// Endpoint</div>
+                          <div className="flex items-center gap-2">
+                            <span className="flex-1">POST /api/documents/create</span>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                navigator.clipboard.writeText("POST /api/documents/create");
+                                toast({
+                                  title: "Copied",
+                                  description: "Endpoint copied to clipboard",
+                                });
+                              }}
+                              className="text-blue-600 hover:text-blue-700 text-xs"
+                            >
+                              <i className="fas fa-copy mr-1"></i>
+                              Copy
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
