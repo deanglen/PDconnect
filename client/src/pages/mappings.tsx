@@ -107,6 +107,15 @@ export default function Mappings() {
   });
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
+    console.log('Form submission data:', {
+      ...values,
+      tenantId: selectedTenant,
+      sugarModule: activeModule,
+    });
+    
+    // Check for form validation errors
+    console.log('Form errors:', form.formState.errors);
+    
     createMutation.mutate({
       ...values,
       tenantId: selectedTenant,
