@@ -416,23 +416,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // This prevents browser freezing with large field sets
       let additionalTokens: any[] = [];
       
-      // Only fetch additional fields if there are few mappings (< 10)
-      if (mappings.length < 10) {
-        try {
-          const sugarService = new SugarCRMService(tenant);
+      // Always try to fetch additional fields - in development mode, use mock data
+      try {
+        const sugarService = new SugarCRMService(tenant);
+        
+        // In development mode, mock data is available immediately without timeout concerns
+        if (process.env.NODE_ENV === 'development') {
+          const fields = await sugarService.getModuleFields(module as string);
           
-          // Set a very short timeout for the SugarCRM call
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('SugarCRM API timeout')), 1500)
-          );
-          
-          const fieldsPromise = sugarService.getModuleFields(module as string);
-          const fields = await Promise.race([fieldsPromise, timeoutPromise]) as any[];
-          
-          // Add unmapped fields (limit to 20 to prevent browser freeze)
+          // Add unmapped fields from mock schema
           additionalTokens = fields
             .filter(field => !mappings.some(m => m.sugarField === field.name))
-            .slice(0, 20) // Very conservative limit
             .map(field => ({
               name: field.name,
               label: field.label,
@@ -441,9 +435,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
               mapped: false,
               pandaDocToken: undefined,
             }));
-        } catch (error) {
-          console.warn('SugarCRM fields unavailable, using mappings only:', error);
+        } else {
+          // Production mode with timeout and conservative limit
+          if (mappings.length < 10) {
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('SugarCRM API timeout')), 1500)
+            );
+            
+            const fieldsPromise = sugarService.getModuleFields(module as string);
+            const fields = await Promise.race([fieldsPromise, timeoutPromise]) as any[];
+            
+            // Add unmapped fields (limit to 20 to prevent browser freeze)
+            additionalTokens = fields
+              .filter(field => !mappings.some(m => m.sugarField === field.name))
+              .slice(0, 20)
+              .map(field => ({
+                name: field.name,
+                label: field.label,
+                type: field.type,
+                token: `{{${field.name}}}`,
+                mapped: false,
+                pandaDocToken: undefined,
+              }));
+          }
         }
+      } catch (error) {
+        console.warn('SugarCRM fields unavailable, using mappings only:', error);
       }
 
       const allTokens = [...mappingTokens, ...additionalTokens];
