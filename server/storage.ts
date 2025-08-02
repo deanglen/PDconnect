@@ -26,6 +26,8 @@ export interface IStorage {
   createTenant(tenant: InsertTenant): Promise<Tenant>;
   updateTenant(id: string, tenant: Partial<InsertTenant>): Promise<Tenant>;
   deleteTenant(id: string): Promise<void>;
+  validateTenantApiKey(apiKey: string): Promise<Tenant | undefined>;
+  generateTenantApiKey(tenantId: string): Promise<string>;
 
   // Field mapping methods
   getFieldMappings(tenantId: string, module?: string): Promise<FieldMapping[]>;
