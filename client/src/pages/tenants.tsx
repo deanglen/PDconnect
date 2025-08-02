@@ -25,6 +25,8 @@ export default function Tenants() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTenant, setEditingTenant] = useState<any>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [viewingTenant, setViewingTenant] = useState<any>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const { data: tenants = [], isLoading } = useQuery({
@@ -160,6 +162,11 @@ export default function Tenants() {
     });
     setIsEditDialogOpen(true);
   };
+
+  const openViewDialog = (tenant: any) => {
+    setViewingTenant(tenant);
+    setIsViewDialogOpen(true);
+  };;
 
   const filteredTenants = tenants.filter((tenant: any) =>
     tenant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -434,126 +441,82 @@ export default function Tenants() {
                 <p className="text-sm text-gray-400">Add your first tenant to get started</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {filteredTenants.map((tenant: any) => (
-                  <Card key={tenant.id} className="border-l-4 border-l-blue-500">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-3">
-                            <h3 className="text-lg font-semibold text-gray-900">{tenant.name}</h3>
-                            <Badge variant={tenant.isActive ? "default" : "secondary"}>
-                              {tenant.isActive ? "Active" : "Inactive"}
-                            </Badge>
-                            <Badge variant={tenant.pandaDocSandbox ? "outline" : "destructive"}>
-                              {tenant.pandaDocSandbox ? "Sandbox" : "Production"}
-                            </Badge>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">Tenant Name</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-600">SugarCRM Instance</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-600">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTenants.map((tenant: any) => (
+                      <tr key={tenant.id} className="border-b hover:bg-gray-50">
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-3">
                             <div>
-                              <p className="text-sm text-gray-600 mb-1">SugarCRM Instance</p>
-                              <p className="text-sm font-medium text-blue-600 hover:text-blue-800">
-                                <a href={tenant.sugarCrmUrl} target="_blank" rel="noopener noreferrer">
-                                  {tenant.sugarCrmUrl}
-                                </a>
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-600 mb-1">Username</p>
-                              <p className="text-sm font-medium">{tenant.sugarCrmUsername}</p>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                            <div className="flex items-center gap-2">
-                              <i className="fas fa-key text-gray-400"></i>
-                              <span className="text-gray-600">PandaDoc API: </span>
-                              <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
-                                {tenant.pandaDocApiKey.substring(0, 8)}...
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <i className="fas fa-code text-gray-400"></i>
-                              <span className="text-gray-600">Integration API: </span>
-                              {tenant.integrationApiKey ? (
-                                <span className="font-mono text-xs bg-blue-100 px-2 py-1 rounded text-blue-800">
-                                  {tenant.integrationApiKey.substring(0, 8)}...
-                                </span>
-                              ) : (
-                                <span className="font-mono text-xs bg-yellow-100 px-2 py-1 rounded text-yellow-800">
-                                  Not Generated
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <i className="fas fa-shield-alt text-gray-400"></i>
-                              <span className="text-gray-600">Webhook Secret: </span>
-                              {tenant.webhookSharedSecret ? (
-                                <span className="font-mono text-xs bg-green-100 px-2 py-1 rounded text-green-800">
-                                  Configured
-                                </span>
-                              ) : (
-                                <span className="font-mono text-xs bg-yellow-100 px-2 py-1 rounded text-yellow-800">
-                                  Not Set
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <i className="fas fa-calendar text-gray-400"></i>
-                              <span className="text-gray-600">Created: </span>
-                              <span>{new Date(tenant.createdAt).toLocaleDateString()}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <i className="fas fa-clock text-gray-400"></i>
-                              <span className="text-gray-600">Updated: </span>
-                              <span>{new Date(tenant.updatedAt).toLocaleDateString()}</span>
+                              <h3 className="font-semibold text-gray-900">{tenant.name}</h3>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant={tenant.isActive ? "default" : "secondary"} className="text-xs">
+                                  {tenant.isActive ? "Active" : "Inactive"}
+                                </Badge>
+                                <Badge variant={tenant.pandaDocSandbox ? "outline" : "destructive"} className="text-xs">
+                                  {tenant.pandaDocSandbox ? "Sandbox" : "Production"}
+                                </Badge>
+                              </div>
                             </div>
                           </div>
-                        </div>
-
-                        <div className="flex items-start gap-2 ml-4">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="text-green-600 hover:text-green-700"
-                            onClick={() => {
-                              if (confirm(`Generate new API key for ${tenant.name}? This will invalidate the existing key.`)) {
-                                generateApiKeyMutation.mutate(tenant.id);
-                              }
-                            }}
-                            disabled={generateApiKeyMutation.isPending}
+                        </td>
+                        <td className="py-4 px-4">
+                          <a 
+                            href={tenant.sugarCrmUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 hover:underline"
                           >
-                            <i className="fas fa-key mr-1"></i>
-                            {generateApiKeyMutation.isPending ? "Generating..." : "Generate API Key"}
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="text-blue-600 hover:text-blue-700"
-                            onClick={() => openEditDialog(tenant)}
-                          >
-                            <i className="fas fa-edit mr-1"></i>
-                            Edit
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() => {
-                              if (confirm(`Are you sure you want to delete ${tenant.name}?`)) {
-                                deleteMutation.mutate(tenant.id);
-                              }
-                            }}
-                          >
-                            <i className="fas fa-trash mr-1"></i>
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                            {tenant.sugarCrmUrl}
+                          </a>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-2 justify-end">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => openViewDialog(tenant)}
+                              className="text-gray-600 hover:text-gray-700"
+                            >
+                              <i className="fas fa-eye mr-1"></i>
+                              View
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => openEditDialog(tenant)}
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              <i className="fas fa-edit mr-1"></i>
+                              Edit
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                if (confirm(`Are you sure you want to delete ${tenant.name}?`)) {
+                                  deleteMutation.mutate(tenant.id);
+                                }
+                              }}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <i className="fas fa-trash mr-1"></i>
+                              Delete
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </CardContent>
@@ -698,6 +661,201 @@ export default function Tenants() {
                 </div>
               </form>
             </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* View Tenant Dialog */}
+        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+          <DialogContent className="max-w-4xl">
+            <DialogHeader>
+              <DialogTitle>Tenant Details: {viewingTenant?.name}</DialogTitle>
+            </DialogHeader>
+            
+            {viewingTenant && (
+              <div className="space-y-6">
+                {/* Basic Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Basic Information</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Tenant Name</label>
+                        <p className="text-sm text-gray-900">{viewingTenant.name}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Status</label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant={viewingTenant.isActive ? "default" : "secondary"}>
+                            {viewingTenant.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                          <Badge variant={viewingTenant.pandaDocSandbox ? "outline" : "destructive"}>
+                            {viewingTenant.pandaDocSandbox ? "Sandbox" : "Production"}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">SugarCRM Configuration</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Instance URL</label>
+                        <a 
+                          href={viewingTenant.sugarCrmUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="block text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          {viewingTenant.sugarCrmUrl}
+                        </a>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Username</label>
+                        <p className="text-sm text-gray-900">{viewingTenant.sugarCrmUsername}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* API Configuration */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">API Configuration</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">PandaDoc API Key</label>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">
+                            {viewingTenant.pandaDocApiKey.substring(0, 8)}...
+                          </span>
+                          <Badge variant="outline">Configured</Badge>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Integration API Key</label>
+                        <div className="flex items-center gap-2">
+                          {viewingTenant.integrationApiKey ? (
+                            <>
+                              <span className="font-mono text-xs bg-blue-100 px-2 py-1 rounded text-blue-800">
+                                {viewingTenant.integrationApiKey.substring(0, 8)}...
+                              </span>
+                              <Badge variant="default">Generated</Badge>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => {
+                                  if (confirm(`Generate new API key for ${viewingTenant.name}? This will invalidate the existing key.`)) {
+                                    generateApiKeyMutation.mutate(viewingTenant.id);
+                                  }
+                                }}
+                                disabled={generateApiKeyMutation.isPending}
+                                className="text-green-600 hover:text-green-700"
+                              >
+                                <i className="fas fa-key mr-1"></i>
+                                {generateApiKeyMutation.isPending ? "Generating..." : "Regenerate"}
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-mono text-xs bg-yellow-100 px-2 py-1 rounded text-yellow-800">
+                                Not Generated
+                              </span>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => {
+                                  if (confirm(`Generate API key for ${viewingTenant.name}?`)) {
+                                    generateApiKeyMutation.mutate(viewingTenant.id);
+                                  }
+                                }}
+                                disabled={generateApiKeyMutation.isPending}
+                                className="text-green-600 hover:text-green-700"
+                              >
+                                <i className="fas fa-key mr-1"></i>
+                                {generateApiKeyMutation.isPending ? "Generating..." : "Generate"}
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Webhook Shared Secret</label>
+                        <div className="flex items-center gap-2">
+                          {viewingTenant.webhookSharedSecret ? (
+                            <>
+                              <span className="font-mono text-xs bg-green-100 px-2 py-1 rounded text-green-800">
+                                Configured
+                              </span>
+                              <Badge variant="default">Secure</Badge>
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-mono text-xs bg-yellow-100 px-2 py-1 rounded text-yellow-800">
+                                Not Set
+                              </span>
+                              <Badge variant="outline">Optional</Badge>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Environment</label>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={viewingTenant.pandaDocSandbox ? "outline" : "destructive"}>
+                            {viewingTenant.pandaDocSandbox ? "Sandbox Mode" : "Production Mode"}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Usage Instructions */}
+                {viewingTenant.integrationApiKey && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">SugarCRM Integration Usage</h3>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-2">Use this API key in SugarCRM for document creation:</p>
+                      <div className="bg-white border rounded p-3 font-mono text-xs">
+                        <div className="text-gray-500">// HTTP Header</div>
+                        <div>Authorization: Bearer {viewingTenant.integrationApiKey}</div>
+                        <div className="mt-2 text-gray-500">// Endpoint</div>
+                        <div>POST /api/documents/create</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Timestamps */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-gray-500">
+                  <div>
+                    <label className="font-medium">Created</label>
+                    <p>{new Date(viewingTenant.createdAt).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium">Last Updated</label>
+                    <p>{new Date(viewingTenant.updatedAt).toLocaleString()}</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-2 pt-4 border-t">
+                  <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+                    Close
+                  </Button>
+                  <Button onClick={() => {
+                    setIsViewDialogOpen(false);
+                    openEditDialog(viewingTenant);
+                  }}>
+                    <i className="fas fa-edit mr-1"></i>
+                    Edit Tenant
+                  </Button>
+                </div>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>
