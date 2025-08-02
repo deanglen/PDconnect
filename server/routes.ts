@@ -424,9 +424,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (process.env.NODE_ENV === 'development') {
           const fields = await sugarService.getModuleFields(module as string);
           
-          // Add unmapped fields from mock schema
+          // Add unmapped fields from mock schema (limit to prevent UI freeze)
           additionalTokens = fields
             .filter(field => !mappings.some(m => m.sugarField === field.name))
+            .slice(0, 10) // Limit to 10 fields to prevent browser freeze
             .map(field => ({
               name: field.name,
               label: field.label,
