@@ -399,8 +399,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Tenant not found" });
       }
 
-      // Get existing field mappings (fast database operation)
-      const mappings = await storage.getFieldMappings(tenantId as string, module as string);
+      // Get existing field mappings (fast database operation) - case insensitive module matching
+      const allMappings = await storage.getFieldMappings(tenantId as string);
+      const mappings = allMappings.filter(mapping => 
+        mapping.sugarModule.toLowerCase() === (module as string).toLowerCase()
+      );
       
       // Return tokens based on existing mappings first for quick response
       const mappingTokens = mappings.map(mapping => ({
@@ -426,12 +429,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Add unmapped fields from mock schema (limit to prevent UI freeze)
           additionalTokens = fields
-            .filter(field => !mappings.some(m => m.sugarField === field.name))
+            .filter(field => field && field.name && !mappings.some(m => m.sugarField === field.name))
             .slice(0, 10) // Limit to 10 fields to prevent browser freeze
             .map(field => ({
               name: field.name,
-              label: field.label,
-              type: field.type,
+              label: field.label || field.name,
+              type: field.type || 'unknown',
               token: `{{${field.name}}}`,
               mapped: false,
               pandaDocToken: undefined,

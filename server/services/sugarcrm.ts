@@ -123,10 +123,15 @@ export class SugarCRMService {
   }
 
   async getModuleFields(module: string): Promise<SugarCRMField[]> {
-    // For UAT testing, use mock schema if available
-    if (process.env.NODE_ENV === 'development' && moduleSchemas[module]) {
-      console.log(`[UAT Mode] Using mock schema for ${module} module`);
-      return moduleSchemas[module];
+    // For UAT testing, use mock schema if available - case insensitive lookup
+    if (process.env.NODE_ENV === 'development') {
+      const moduleKey = Object.keys(moduleSchemas).find(key => 
+        key.toLowerCase() === module.toLowerCase()
+      );
+      if (moduleKey && moduleSchemas[moduleKey]) {
+        console.log(`[UAT Mode] Using mock schema for ${module} module`);
+        return moduleSchemas[moduleKey];
+      }
     }
 
     await this.ensureAuthenticated();
