@@ -93,11 +93,21 @@ export default function Tenants() {
 
   const generateApiKeyMutation = useMutation({
     mutationFn: api.generateTenantApiKey,
-    onSuccess: (response: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/tenants'] });
+    onSuccess: async (response: any) => {
+      // Update the viewing tenant immediately with the new API key
+      if (viewingTenant && viewingTenant.id === response.tenantId) {
+        setViewingTenant({
+          ...viewingTenant,
+          integrationApiKey: response.apiKey
+        });
+      }
+      
+      // Invalidate and refetch to ensure we have the latest data
+      await queryClient.invalidateQueries({ queryKey: ['/api/tenants'] });
+      
       toast({
         title: "API Key Generated",
-        description: `New tenant API key created. Use for SugarCRM integration: ${response.apiKey.substring(0, 20)}...`,
+        description: `New tenant API key created and ready to copy!`,
       });
     },
     onError: (error: any) => {
