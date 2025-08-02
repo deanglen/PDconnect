@@ -45,6 +45,7 @@ The application supports multi-tenancy, providing isolated configurations for ea
 - **Operational Excellence**: Includes a `/health` endpoint, enhanced logging with sensitive data redaction, and an automatic retry queue with exponential backoff for failed operations.
 - **Performance Optimization**: Client-side optimizations for field mapping UI and JSON view/edit capabilities.
 - **Tenant-Specific API Keys**: Enhanced authentication system with tenant-specific integration API keys for better SugarCRM integration. Each tenant can generate unique API keys that automatically identify the tenant without requiring explicit tenantId in requests.
+- **File Attachment System**: PDF files are downloaded from PandaDoc using `data.id` and uploaded to SugarCRM Notes module with proper parent relationships (parent_type = "Opportunities", parent_id = record_id extracted from metadata). Field Name = "filename", File Source = "data.id" for Notes module integration.
 
 ## External Dependencies
 

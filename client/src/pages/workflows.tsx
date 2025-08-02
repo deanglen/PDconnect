@@ -722,46 +722,52 @@ function WorkflowEditor({
                 
                 {/* Attach File Action */}
                 {action.type === 'attach_file' && (
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
-                        Target Module
-                      </Label>
-                      <Select
-                        value={action.module || ''}
-                        onValueChange={(value) => updateAction('then', index, 'module', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Module" />
-                        </SelectTrigger>
-                      <SelectContent>
-                        {sugarModules.map(module => (
-                          <SelectItem key={module.value} value={module.value}>
-                            {module.label}
-                          </SelectItem>
-                        ))}
-                        </SelectContent>
-                      </Select>
+                  <div className="space-y-3">
+                    <div className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded border">
+                      <strong>Notes Module Example:</strong> To attach PDF to a Note linked to an Opportunity, use Target Module = "Notes", Field Name = "filename", File Source = "data.id". 
+                      The middleware will extract record_id from metadata and set parent_type = "Opportunities", parent_id = record_id.
                     </div>
-                    <div>
-                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
-                        Field Name
-                      </Label>
-                      <Input
-                        placeholder="e.g., filename"
-                        value={action.field || ''}
-                        onChange={(e) => updateAction('then', index, 'field', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
-                        File Source
-                      </Label>
-                      <Input
-                        placeholder="PandaDoc document"
-                        value={action.source || 'pandadoc_document'}
-                        onChange={(e) => updateAction('then', index, 'source', e.target.value)}
-                      />
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                          Target Module
+                        </Label>
+                        <Select
+                          value={action.module || ''}
+                          onValueChange={(value) => updateAction('then', index, 'module', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Module" />
+                          </SelectTrigger>
+                        <SelectContent>
+                          {sugarModules.map(module => (
+                            <SelectItem key={module.value} value={module.value}>
+                              {module.label}
+                            </SelectItem>
+                          ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                          Field Name
+                        </Label>
+                        <Input
+                          placeholder="filename (for Notes) or file_attachment"
+                          value={action.field || ''}
+                          onChange={(e) => updateAction('then', index, 'field', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                          File Source
+                        </Label>
+                        <Input
+                          placeholder="data.id (PandaDoc document ID for download)"
+                          value={action.source || 'data.id'}
+                          onChange={(e) => updateAction('then', index, 'source', e.target.value)}
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
