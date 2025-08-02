@@ -46,6 +46,17 @@ export default function Mappings() {
     enabled: !!selectedTenant,
   });
 
+  // Field discovery query
+  const { data: fieldDiscovery, isLoading: discoveryLoading } = useQuery({
+    queryKey: ['/api/field-discovery', selectedTenant, activeModule],
+    queryFn: () => selectedTenant ? api.discoverFields(selectedTenant, activeModule) : null,
+    enabled: !!selectedTenant,
+  });
+
+  // Test mapping state
+  const [testResult, setTestResult] = useState<any>(null);
+  const [isTestingMapping, setIsTestingMapping] = useState(false);
+
   const createMutation = useMutation({
     mutationFn: api.createFieldMapping,
     onSuccess: (data) => {
@@ -162,6 +173,33 @@ export default function Mappings() {
     }
   };
 
+  // Test mapping function
+  const testMapping = async () => {
+    if (!selectedTenant) return;
+    
+    setIsTestingMapping(true);
+    try {
+      const result = await api.testMapping({
+        tenantId: selectedTenant,
+        recordId: "oppty_1234", // Using demo record
+        module: activeModule
+      });
+      setTestResult(result);
+      toast({
+        title: "Test Completed",
+        description: `Found ${result.preview?.tokens?.length || 0} successful mappings`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Test Failed", 
+        description: error.message || "Failed to test mapping",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTestingMapping(false);
+    }
+  };
+
   return (
     <div className="flex-1 overflow-auto">
       <Topbar 
@@ -183,6 +221,15 @@ export default function Mappings() {
             </Select>
             {selectedTenant && (
               <div className="flex items-center space-x-2">
+                <Button 
+                  variant="outline" 
+                  onClick={testMapping}
+                  disabled={mappings.length === 0 || isTestingMapping}
+                >
+                  <i className="fas fa-vial mr-2"></i>
+                  {isTestingMapping ? "Testing..." : "Test Mapping"}
+                </Button>
+                
                 <Dialog open={showJsonView} onOpenChange={setShowJsonView}>
                   <DialogTrigger asChild>
                     <Button variant="outline" disabled={mappings.length === 0}>
@@ -517,6 +564,74 @@ export default function Mappings() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Test Results Section */}
+            {testResult && (
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <i className="fas fa-vial text-purple-600"></i>
+                    Mapping Test Results
+                    <Badge variant={testResult.preview.successfulMappings === testResult.preview.totalMappings ? "default" : "secondary"}>
+                      {testResult.metadata.successRate}% Success Rate
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Test Summary */}
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="text-center p-3 bg-green-50 rounded-lg">
+                        <div className="text-2xl font-bold text-green-600">{testResult.preview.successfulMappings}</div>
+                        <div className="text-sm text-green-700">Successful</div>
+                      </div>
+                      <div className="text-center p-3 bg-red-50 rounded-lg">
+                        <div className="text-2xl font-bold text-red-600">{testResult.preview.missingFields.length}</div>
+                        <div className="text-sm text-red-700">Missing</div>
+                      </div>
+                      <div className="text-center p-3 bg-blue-50 rounded-lg">
+                        <div className="text-2xl font-bold text-blue-600">{testResult.metadata.totalFields}</div>
+                        <div className="text-sm text-blue-700">Total Fields</div>
+                      </div>
+                    </div>
+
+                    {/* Generated Tokens */}
+                    {testResult.preview.tokens.length > 0 && (
+                      <div>
+                        <h4 className="font-medium mb-3">Generated Tokens</h4>
+                        <div className="space-y-2">
+                          {testResult.preview.tokens.map((token: any, index: number) => (
+                            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <Badge variant="outline" className="font-mono">{token.name}</Badge>
+                                <i className="fas fa-arrow-right text-gray-400"></i>
+                                <span className="font-medium">{token.value}</span>
+                              </div>
+                              <Badge variant="secondary" className="text-xs">
+                                {token.source}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Test Record Info */}
+                    <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <i className="fas fa-info-circle text-blue-600"></i>
+                        <span className="font-medium text-blue-800">Test Record</span>
+                      </div>
+                      <div className="text-sm text-blue-700">
+                        <strong>ID:</strong> {testResult.record.id} | 
+                        <strong> Name:</strong> {testResult.record.name} | 
+                        <strong> Module:</strong> {testResult.record.module}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </div>

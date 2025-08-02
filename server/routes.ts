@@ -188,17 +188,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get field mappings for token generation
       const mappings = await storage.getFieldMappings(tenantId, module);
       
-      // Generate tokens from record data and mappings
-      const tokens = [];
-      for (const mapping of mappings) {
-        const value = record[mapping.sugarField];
-        if (value !== undefined && value !== null) {
-          tokens.push({
-            name: mapping.pandaDocToken.replace(/[{}]/g, ''),
-            value: String(value)
-          });
-        }
-      }
+      // Generate tokens from record data and mappings using enhanced service
+      const { TokenMappingService } = await import('./services/TokenMappingService');
+      const tokenResults = TokenMappingService.generateTokens(record, mappings);
+      const tokens = tokenResults.map(token => ({
+        name: token.name,
+        value: token.value
+      }));
 
       // Create PandaDoc document
       const createRequest = {
@@ -382,6 +378,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(failedLogs);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch failed webhooks" });
+    }
+  });
+
+  // Field Discovery Endpoint - Get available fields from SugarCRM module
+  app.get("/api/sugarcrm/:module/fields", async (req: Request, res: Response) => {
+    try {
+      const { module } = req.params;
+      const { tenantId, recordId } = req.query;
+
+      if (!tenantId) {
+        return res.status(400).json({ message: "Tenant ID is required" });
+      }
+
+      const tenant = await storage.getTenant(tenantId as string);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      const sugarService = new SugarCRMService(tenant);
+      
+      // Get module fields schema
+      const fields = await sugarService.getModuleFields(module);
+      
+      // If recordId provided, also discover fields from actual record
+      let discoverableFields: any[] = [];
+      if (recordId) {
+        try {
+          const record = await sugarService.getRecord(module, recordId as string);
+          const { TokenMappingService } = await import('./services/TokenMappingService');
+          discoverableFields = TokenMappingService.discoverFields(record);
+        } catch (error) {
+          console.log('Could not fetch record for field discovery:', error);
+        }
+      }
+
+      res.json({
+        schemaFields: fields,
+        discoverableFields,
+        moduleInfo: {
+          name: module,
+          totalSchemaFields: fields.length,
+          totalDiscoverableFields: discoverableFields.length
+        }
+      });
+
+    } catch (error) {
+      console.error('Field discovery error:', error);
+      res.status(500).json({ message: "Failed to discover fields" });
+    }
+  });
+
+  // Test Mapping Endpoint - Preview mapping results without creating document
+  app.post("/api/test-mapping", async (req: Request, res: Response) => {
+    try {
+      const { tenantId, recordId, module, mappings: customMappings } = req.body;
+
+      if (!tenantId || !recordId || !module) {
+        return res.status(400).json({ message: "Missing required parameters: tenantId, recordId, module" });
+      }
+
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      // For demo purposes, use mock data instead of real SugarCRM 
+      const { mockRecords } = await import('./mock-data/sugarcrm-schemas');
+      const moduleKey = module.charAt(0).toUpperCase() + module.slice(1);
+      const mockModuleRecords = mockRecords[moduleKey];
+      
+      if (!mockModuleRecords || !mockModuleRecords[recordId]) {
+        return res.status(404).json({ message: `Record ${recordId} not found in module ${module}` });
+      }
+      
+      const record = mockModuleRecords[recordId];
+
+      // Use provided mappings or fetch from database
+      let mappings;
+      if (customMappings && Array.isArray(customMappings)) {
+        mappings = customMappings;
+      } else {
+        mappings = await storage.getFieldMappings(tenantId, module);
+      }
+
+      const { TokenMappingService } = await import('./services/TokenMappingService');
+      
+      // Generate preview
+      const preview = TokenMappingService.previewMapping(record, mappings);
+      
+      // Validate mappings
+      const validation = TokenMappingService.validateMappings(record, mappings);
+      
+      res.json({
+        preview,
+        validation,
+        record: {
+          id: record.id,
+          name: record.name || 'Unknown Record',
+          module
+        },
+        metadata: {
+          totalFields: Object.keys(record).length,
+          mappedFields: mappings.length,
+          successRate: mappings.length > 0 ? (preview.successfulMappings / mappings.length * 100).toFixed(1) : '0'
+        }
+      });
+
+    } catch (error) {
+      console.error('Test mapping error:', error);
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to test mapping" });
     }
   });
 

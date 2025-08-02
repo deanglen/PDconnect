@@ -53,6 +53,24 @@ export const api = {
     return await apiRequest(`/api/tokens?${params}`);
   },
 
+  // Field Discovery 
+  async discoverFields(tenantId: string, module: string, recordId?: string) {
+    const params = new URLSearchParams({ tenantId });
+    if (recordId) params.append('recordId', recordId);
+    
+    return await apiRequest(`/api/sugarcrm/${module}/fields?${params}`);
+  },
+
+  // Test Mapping
+  async testMapping(data: {
+    tenantId: string;
+    recordId: string;
+    module: string;
+    mappings?: any[];
+  }) {
+    return await apiRequest("/api/test-mapping", "POST", data);
+  },
+
   // Tenants
   async getTenants() {
     return await apiRequest("/api/tenants");
