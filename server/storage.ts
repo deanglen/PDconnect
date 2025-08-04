@@ -284,7 +284,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteTenant(id: string): Promise<void> {
-    await db.delete(tenants).where(eq(tenants.id, id));
+    try {
+      // Delete related records first to avoid foreign key constraints
+      
+      // Delete field mappings
+      await db.delete(fieldMappings).where(eq(fieldMappings.tenantId, id));
+      
+      // Delete workflows
+      await db.delete(workflows).where(eq(workflows.tenantId, id));
+      
+      // Delete webhook logs
+      await db.delete(webhookLogs).where(eq(webhookLogs.tenantId, id));
+      
+      // Delete documents
+      await db.delete(documents).where(eq(documents.tenantId, id));
+      
+      // Finally delete the tenant
+      await db.delete(tenants).where(eq(tenants.id, id));
+      
+      console.log(`Successfully deleted tenant ${id} and all related records`);
+    } catch (error) {
+      console.error(`Error deleting tenant ${id}:`, error);
+      throw error;
+    }
   }
 
   async getFieldMappings(tenantId: string, module?: string): Promise<FieldMapping[]> {

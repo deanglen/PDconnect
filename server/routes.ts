@@ -883,10 +883,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/tenants/:id", async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
+      
+      // Check if tenant exists
+      const tenant = await storage.getTenant(id);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      
       await storage.deleteTenant(id);
       res.status(204).send();
     } catch (error) {
-      res.status(500).json({ message: "Failed to delete tenant" });
+      console.error("Error deleting tenant:", error);
+      res.status(500).json({ 
+        message: "Failed to delete tenant", 
+        error: error instanceof Error ? error.message : "Unknown error" 
+      });
     }
   });
 
