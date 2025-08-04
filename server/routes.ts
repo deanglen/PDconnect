@@ -121,6 +121,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Test SugarCRM connection for a tenant
+  app.get("/api/tenants/:tenantId/test/sugarcrm", createAuthMiddleware(["api_key", "session"]), async (req: Request, res: Response) => {
+    try {
+      const { tenantId } = req.params;
+      const tenant = await storage.getTenant(tenantId);
+      
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      const sugarService = new SugarCRMService(tenant);
+      const connectionTest = await sugarService.testConnection();
+      
+      res.json({
+        status: connectionTest.success ? "success" : "error",
+        message: connectionTest.message,
+        details: connectionTest.details,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("SugarCRM test error:", error);
+      res.status(500).json({ 
+        status: "error",
+        message: error instanceof Error ? error.message : "SugarCRM connection test failed" 
+      });
+    }
+  });
+
+  // Test PandaDoc connection for a tenant
+  app.get("/api/tenants/:tenantId/test/pandadoc", createAuthMiddleware(["api_key", "session"]), async (req: Request, res: Response) => {
+    try {
+      const { tenantId } = req.params;
+      const tenant = await storage.getTenant(tenantId);
+      
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      const pandaService = new PandaDocService(tenant);
+      const connectionTest = await pandaService.testConnection();
+      
+      res.json({
+        status: connectionTest.success ? "success" : "error",
+        message: connectionTest.message,
+        details: connectionTest.details,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("PandaDoc test error:", error);
+      res.status(500).json({ 
+        status: "error",
+        message: error instanceof Error ? error.message : "PandaDoc connection test failed" 
+      });
+    }
+  });
+
+  // Get live SugarCRM data for testing field mappings
+  app.get("/api/tenants/:tenantId/test/sugarcrm/records/:module", createAuthMiddleware(["api_key", "session"]), async (req: Request, res: Response) => {
+    try {
+      const { tenantId, module } = req.params;
+      const { limit = 5 } = req.query;
+      
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      const sugarService = new SugarCRMService(tenant);
+      const records = await sugarService.getRecords(module, { limit: Number(limit) });
+      
+      res.json({
+        module,
+        recordCount: records.length,
+        sampleRecords: records,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("SugarCRM records test error:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to fetch SugarCRM records" 
+      });
+    }
+  });
+
   // Auth status endpoint  
   app.get("/auth-status", (req: Request, res: Response) => {
     res.json(getAuthStatus());

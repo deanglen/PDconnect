@@ -12,6 +12,7 @@ import Tenants from "@/pages/tenants";
 import Mappings from "@/pages/mappings";
 import Workflows from "@/pages/workflows";
 import Tokens from "@/pages/tokens";
+import LiveTesting from "@/pages/live-testing";
 import Webhooks from "@/pages/webhooks";
 import Documents from "@/pages/documents";
 import UserManagement from "@/pages/user-management";
@@ -52,6 +53,7 @@ function Router() {
             <Route path="/webhooks" component={Webhooks} />
             <Route path="/documents" component={Documents} />
             <Route path="/users" component={UserManagement} />
+            <Route path="/live-testing" component={LiveTesting} />
             <Route component={NotFound} />
           </Switch>
         </div>
