@@ -59,6 +59,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/auth", authRoutes);
 
   // WEBHOOK ENDPOINTS - MUST BE BEFORE AUTH MIDDLEWARE
+  // GET endpoint for browser-friendly document creation (testing/UAT) - no auth required for testing
+  app.get("/api/create-doc", async (req: Request, res: Response) => {
+    try {
+      // Extract parameters from query string
+      const { record_id, module, tenant_id, template_id } = req.query;
+
+      if (!record_id || !module || !tenant_id || !template_id) {
+        return res.status(400).json({
+          error: "Missing required parameters",
+          required: ["record_id", "module", "tenant_id", "template_id"],
+          message: "Please provide all required parameters in the URL",
+          example: "/api/create-doc?record_id=123&module=Opportunities&tenant_id=your-tenant-id&template_id=your-template-id"
+        });
+      }
+
+      // Convert query params to shared handler format
+      const mockReq = {
+        ...req,
+        body: {
+          record_id: record_id as string,
+          module: module as string,
+          tenant_id: tenant_id as string,
+          template_id: template_id as string
+        }
+      } as Request;
+
+      // Call the shared handler
+      return handleDocumentCreation(mockReq, res);
+
+    } catch (error) {
+      console.error("GET create-doc error:", error);
+      return res.status(500).json({ 
+        error: "Document creation failed",
+        message: error instanceof Error ? error.message : "Unknown error occurred" 
+      });
+    }
+  });
+
   // PandaDoc webhook endpoint (no auth required - uses HMAC signature verification)
   app.post("/api/webhook/pandadoc", async (req: Request, res: Response) => {
     try {
@@ -160,10 +198,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const authMiddleware = createAuthMiddleware();
   
   // Apply authentication to API routes only, not frontend routes
-  // BUT exclude /api/users/me and /api/auth which handle their own authentication
+  // BUT exclude /api/users/me, /api/auth, and /api/create-doc GET which handle their own authentication
   app.use('/api', (req, res, next) => {
-    if (req.path === '/users/me' || req.path.startsWith('/auth/')) {
-      return next(); // Skip auth middleware for user profile and auth endpoints
+    if (req.path === '/users/me' || req.path.startsWith('/auth/') || (req.path === '/create-doc' && req.method === 'GET')) {
+      return next(); // Skip auth middleware for user profile, auth endpoints, and GET create-doc
     }
     return authMiddleware(req, res, next);
   });
@@ -350,18 +388,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create document endpoint
-  app.post("/api/create-doc", async (req: Request, res: Response) => {
+  // GET endpoint for browser-friendly document creation (testing/UAT)
+  app.get("/api/create-doc", async (req: Request, res: Response) => {
     try {
-      const { tenantId, recordId, module, templateId } = req.body;
+      // Extract parameters from query string
+      const { record_id, module, tenant_id, template_id } = req.query;
 
-      if (!tenantId || !recordId || !module) {
-        return res.status(400).json({ message: "Missing required parameters" });
+      if (!record_id || !module || !tenant_id || !template_id) {
+        return res.status(400).json({
+          error: "Missing required parameters",
+          required: ["record_id", "module", "tenant_id", "template_id"],
+          message: "Please provide all required parameters in the URL",
+          example: "/create-doc?record_id=123&module=Opportunities&tenant_id=your-tenant-id&template_id=your-template-id"
+        });
       }
 
-      const tenant = await storage.getTenant(tenantId);
+      // Convert query params to POST body format and internally call the POST endpoint
+      const postBody = {
+        record_id: record_id as string,
+        module: module as string,
+        tenant_id: tenant_id as string,
+        template_id: template_id as string
+      };
+
+      // Create a mock request object for the POST handler
+      const mockPostReq = {
+        ...req,
+        method: 'POST',
+        body: postBody
+      } as Request;
+
+      // Call the POST handler internally
+      return handleDocumentCreation(mockPostReq, res);
+
+    } catch (error) {
+      console.error("GET create-doc error:", error);
+      res.status(500).json({ 
+        error: "Document creation failed",
+        message: error instanceof Error ? error.message : "Unknown error occurred" 
+      });
+    }
+  });
+
+  // POST endpoint for programmatic document creation (production)
+  app.post("/api/create-doc", async (req: Request, res: Response) => {
+    return handleDocumentCreation(req, res);
+  });
+
+  // Shared document creation handler
+  async function handleDocumentCreation(req: Request, res: Response) {
+    try {
+      const { record_id, module, tenant_id, template_id } = req.body;
+
+      if (!record_id || !module || !tenant_id || !template_id) {
+        return res.status(400).json({
+          error: "Missing required parameters",
+          required: ["record_id", "module", "tenant_id", "template_id"],
+          message: "Please provide record_id, module, tenant_id, and template_id"
+        });
+      }
+
+      const tenant = await storage.getTenant(tenant_id);
       if (!tenant) {
-        return res.status(404).json({ message: "Tenant not found" });
+        return res.status(404).json({ 
+          error: "Tenant not found",
+          message: `No tenant found with ID: ${tenant_id}`
+        });
+      }
+
+      if (!tenant.isActive) {
+        return res.status(403).json({
+          error: "Tenant inactive", 
+          message: "This tenant configuration is currently inactive"
+        });
       }
 
       // Initialize services
@@ -369,10 +468,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pandaService = new PandaDocService(tenant);
 
       // Get SugarCRM record
-      const record = await sugarService.getRecord(module, recordId);
+      const record = await sugarService.getRecord(module, record_id);
       
+      if (!record) {
+        return res.status(404).json({
+          error: "Record not found",
+          message: `No ${module} record found with ID: ${record_id}`
+        });
+      }
+
       // Get field mappings for token generation
-      const mappings = await storage.getFieldMappings(tenantId, module);
+      const mappings = await storage.getFieldMappings(tenant_id, module);
       
       // Generate tokens from record data and mappings using enhanced service
       const { TokenMappingService } = await import('./services/TokenMappingService');
@@ -385,7 +491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create PandaDoc document
       const createRequest = {
         name: `${record.name || 'Document'} - ${new Date().toLocaleDateString()}`,
-        template_uuid: templateId || process.env.DEFAULT_TEMPLATE_ID || 'template-id-placeholder',
+        template_uuid: template_id,
         recipients: [
           {
             email: record.email || 'recipient@example.com',
@@ -396,8 +502,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ],
         tokens,
         metadata: {
-          tenant_id: tenantId,
-          sugar_record_id: recordId,
+          tenant_id: tenant_id,
+          sugar_record_id: record_id,
           sugar_module: module,
         }
       };
@@ -406,26 +512,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Save document record
       await storage.createDocument({
-        tenantId,
+        tenantId: tenant_id,
         pandaDocId: pandaDoc.id,
-        sugarRecordId: recordId,
+        sugarRecordId: record_id,
         sugarModule: module,
         name: pandaDoc.name,
         status: pandaDoc.status,
         publicUrl: pandaService.generatePublicLink(pandaDoc.id),
       });
 
-      res.json({
+      return res.json({
+        success: true,
         documentId: pandaDoc.id,
         publicLink: pandaService.generatePublicLink(pandaDoc.id),
         status: pandaDoc.status,
+        message: "Document created successfully"
       });
 
     } catch (error) {
       console.error('Create document error:', error);
-      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to create document" });
+      return res.status(500).json({ 
+        success: false,
+        error: "Document creation failed",
+        message: error instanceof Error ? error.message : "Unknown error occurred" 
+      });
     }
-  });
+  }
 
 
 
