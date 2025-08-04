@@ -46,9 +46,12 @@ export default function UserManagement() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: users = [], isLoading } = useQuery<User[]>({
+  const { data: users, isLoading, error } = useQuery<User[]>({
     queryKey: ["/api/users"],
   });
+
+  // Safe users array with fallback
+  const safeUsers = users || [];
 
   const { data: tenants = [] } = useQuery({
     queryKey: ["/api/tenants"],
@@ -294,7 +297,7 @@ export default function UserManagement() {
       </div>
 
       <div className="grid gap-4">
-        {users.map((user) => (
+        {safeUsers.map((user) => (
           <Card key={user.id}>
             <CardHeader>
               <div className="flex justify-between items-start">
