@@ -46,6 +46,7 @@ The application supports multi-tenancy, providing isolated configurations for ea
 - **Performance Optimization**: Client-side optimizations for field mapping UI and JSON view/edit capabilities.
 - **Tenant-Specific API Keys**: Enhanced authentication system with tenant-specific integration API keys for better SugarCRM integration. Each tenant can generate unique API keys that automatically identify the tenant without requiring explicit tenantId in requests.
 - **File Attachment System**: PDF files are downloaded from PandaDoc using `data.id` and uploaded to SugarCRM Notes module with flexible parent relationships. Notes can be attached to any SugarCRM module (Opportunities, Accounts, Contacts, Cases, Leads, Tasks, Meetings, Calls, custom modules). The middleware automatically extracts record_id from metadata and sets parent_type/parent_id accordingly. Standard configuration: Field Name = "filename", File Source = "data.id", Target Module = "Notes", Parent Module = "auto-detect from metadata".
+- **Dynamic Field Selection**: Intelligent workflow builder with real-time SugarCRM field discovery. API endpoint `/api/tenants/{tenantId}/sugarcrm/fields/{module}` fetches live field metadata with filtering support. Update Record actions show all available fields, while Attach File actions display only file attachment fields. Reduces configuration errors through automated field validation and dropdown selection.
 
 ## External Dependencies
 
