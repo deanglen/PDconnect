@@ -58,11 +58,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
   app.use("/api/auth", authRoutes);
 
+  // WEBHOOK ENDPOINTS - MUST BE BEFORE AUTH MIDDLEWARE
+  // PandaDoc webhook endpoint (no auth required - uses HMAC signature verification)
+  app.post("/api/webhook/pandadoc", async (req: Request, res: Response) => {
+    try {
+      const signature = req.headers['x-pd-signature'] as string;
+      const payload = JSON.stringify(req.body);
+
+      // Validate webhook payload structure first
+      if (!WebhookVerifier.validateWebhookPayload(req.body)) {
+        return res.status(400).json({ message: "Invalid webhook payload structure" });
+      }
+
+      // Handle both array format and single object format
+      const webhookData = Array.isArray(req.body) ? req.body[0] : req.body;
+      
+      const eventType = webhookData.event_type || webhookData.event;
+      const eventId = webhookData.event_id || webhookData.data?.id || `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Check for duplicate webhook (using event_id for deduplication)
+      const existingWebhook = await storage.getWebhookLogByEventId(eventId);
+      if (existingWebhook) {
+        logger.logWebhookEvent({
+          webhookId: existingWebhook.id,
+          eventType,
+          tenantId: existingWebhook.tenantId || 'unknown',
+          status: 'duplicate_ignored',
+          timestamp: new Date().toISOString(),
+        });
+        return res.status(200).json({ message: "Webhook already processed", status: "duplicate" });
+      }
+
+      // Find tenant from document metadata
+      const tenantId = WebhookVerifier.extractTenantFromPayload(req.body);
+      if (!tenantId) {
+        logger.logWebhookError({
+          tenantId: 'unknown',
+          eventType,
+          error: 'Unable to identify tenant from webhook payload',
+          stage: 'tenant_identification',
+          timestamp: new Date().toISOString(),
+        });
+        return res.status(400).json({ message: "Unable to identify tenant" });
+      }
+
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) {
+        logger.logWebhookError({
+          tenantId,
+          eventType,
+          error: `Tenant not found: ${tenantId}`,
+          stage: 'tenant_validation',
+          timestamp: new Date().toISOString(),
+        });
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      // Verify webhook signature using tenant-specific secret
+      if (tenant.webhookSharedSecret && signature) {
+        if (!WebhookVerifier.verifyPandaDocSignature(payload, signature, tenant.webhookSharedSecret)) {
+          logger.logWebhookError({
+            tenantId,
+            eventType,
+            error: 'Invalid webhook signature',
+            stage: 'signature_verification',
+            timestamp: new Date().toISOString(),
+          });
+          return res.status(401).json({ message: "Invalid webhook signature" });
+        }
+      }
+
+      // PERSIST WEBHOOK IMMEDIATELY - This is the key requirement
+      const webhookLog = await WebhookProcessor.persistAndQueue(req.body, tenantId, eventId);
+
+      // Return 200 OK immediately after persistence (as required)
+      res.status(200).json({ 
+        message: "Webhook received and queued for processing", 
+        webhookId: webhookLog.id,
+        status: "queued" 
+      });
+
+      // Async processing is now handled by WebhookProcessor.persistAndQueue()
+      
+    } catch (error) {
+      logger.logWebhookError({
+        tenantId: 'unknown',
+        eventType: 'unknown',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stage: 'webhook_processing',
+        timestamp: new Date().toISOString(),
+      });
+      
+      res.status(500).json({ 
+        message: "Failed to process webhook", 
+        error: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
+
   // Multi-cloud authentication middleware - ONLY for API routes
   const authMiddleware = createAuthMiddleware();
   
   // Apply authentication to API routes only, not frontend routes
-  // BUT exclude /api/users/me and /api/auth which handles its own authentication
+  // BUT exclude /api/users/me and /api/auth which handle their own authentication
   app.use('/api', (req, res, next) => {
     if (req.path === '/users/me' || req.path.startsWith('/auth/')) {
       return next(); // Skip auth middleware for user profile and auth endpoints
@@ -329,96 +427,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PandaDoc webhook endpoint - Enhanced with persistent storage and async processing
-  app.post("/api/webhook/pandadoc", async (req: Request, res: Response) => {
-    try {
-      const signature = req.headers['x-pd-signature'] as string;
-      const payload = JSON.stringify(req.body);
 
-      // Validate webhook payload structure first
-      if (!WebhookVerifier.validateWebhookPayload(req.body)) {
-        return res.status(400).json({ message: "Invalid webhook payload structure" });
-      }
-
-      const eventType = req.body.event_type;
-      const eventId = req.body.event_id || req.body.data?.id || `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      // Check for duplicate webhook (using event_id for deduplication)
-      const existingWebhook = await storage.getWebhookLogByEventId(eventId);
-      if (existingWebhook) {
-        logger.logWebhookEvent({
-          webhookId: existingWebhook.id,
-          eventType,
-          tenantId: existingWebhook.tenantId || 'unknown',
-          status: 'duplicate_ignored',
-          timestamp: new Date().toISOString(),
-        });
-        return res.status(200).json({ message: "Webhook already processed", status: "duplicate" });
-      }
-
-      // Find tenant from document metadata
-      const tenantId = WebhookVerifier.extractTenantFromPayload(req.body);
-      if (!tenantId) {
-        logger.logWebhookError({
-          tenantId: 'unknown',
-          eventType,
-          error: 'Unable to identify tenant from webhook payload',
-          stage: 'tenant_identification',
-          timestamp: new Date().toISOString(),
-        });
-        return res.status(400).json({ message: "Unable to identify tenant" });
-      }
-
-      const tenant = await storage.getTenant(tenantId);
-      if (!tenant) {
-        logger.logWebhookError({
-          tenantId,
-          eventType,
-          error: `Tenant not found: ${tenantId}`,
-          stage: 'tenant_validation',
-          timestamp: new Date().toISOString(),
-        });
-        return res.status(404).json({ message: "Tenant not found" });
-      }
-
-      // Verify webhook signature using tenant-specific secret
-      if (tenant.webhookSharedSecret && signature) {
-        if (!WebhookVerifier.verifyPandaDocSignature(payload, signature, tenant.webhookSharedSecret)) {
-          logger.logWebhookError({
-            tenantId,
-            eventType,
-            error: 'Invalid webhook signature',
-            stage: 'signature_verification',
-            timestamp: new Date().toISOString(),
-          });
-          return res.status(401).json({ message: "Invalid webhook signature" });
-        }
-      }
-
-      // PERSIST WEBHOOK IMMEDIATELY - This is the key requirement
-      const webhookLog = await WebhookProcessor.persistAndQueue(req.body, tenantId, eventId);
-
-      // Return 200 OK immediately after persistence (as required)
-      res.status(200).json({ 
-        message: "Webhook received and queued for processing", 
-        webhookId: webhookLog.id,
-        status: "queued" 
-      });
-
-      // Async processing is now handled by WebhookProcessor.persistAndQueue()
-      // which queues the webhook for background processing
-
-    } catch (error) {
-      logger.logWebhookError({
-        tenantId: 'unknown',
-        eventType: req.body?.event_type || 'unknown',
-        error: error instanceof Error ? error.message : 'Unknown error',
-        stage: 'webhook_reception',
-        timestamp: new Date().toISOString(),
-      });
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
 
   // Enhanced webhook management endpoints for admin interface
   app.get("/api/webhook-logs", async (req: Request, res: Response) => {
