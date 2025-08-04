@@ -42,7 +42,10 @@ export const api = {
     module: string;
     templateId?: string;
   }) {
-    return await apiRequest("/api/create-doc", "POST", data);
+    return await apiRequest("/api/create-doc", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   },
 
   // Tokens
@@ -76,7 +79,10 @@ export const api = {
     module: string;
     mappings?: any[];
   }) {
-    return await apiRequest("/api/test-mapping", "POST", data);
+    return await apiRequest("/api/test-mapping", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   },
 
   // Tenants
@@ -92,7 +98,10 @@ export const api = {
   },
 
   async updateTenant(id: string, data: any) {
-    return await apiRequest(`/api/tenants/${id}`, "PUT", data);
+    return await apiRequest(`/api/tenants/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
   },
 
   async deleteTenant(id: string) {
@@ -101,7 +110,9 @@ export const api = {
   },
 
   async generateTenantApiKey(tenantId: string) {
-    return await apiRequest(`/api/tenants/${tenantId}/generate-api-key`, "POST");
+    return await apiRequest(`/api/tenants/${tenantId}/generate-api-key`, {
+      method: "POST",
+    });
   },
 
   // Field mappings
@@ -130,11 +141,17 @@ export const api = {
   },
 
   async createWorkflow(data: any) {
-    return await apiRequest("/api/workflows", "POST", data);
+    return await apiRequest("/api/workflows", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   },
 
   async updateWorkflow(id: string, data: any) {
-    return await apiRequest(`/api/workflows/${id}`, "PUT", data);
+    return await apiRequest(`/api/workflows/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
   },
 
   async deleteWorkflow(id: string) {
