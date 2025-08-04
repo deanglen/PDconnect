@@ -36,59 +36,14 @@ export class SugarCRMService {
 
   async authenticate(): Promise<void> {
     try {
-      console.log(`[SugarCRM] Attempting authentication for ${this.tenant.sugarCrmUsername} at ${this.tenant.sugarCrmUrl}`);
-      
-      let response;
-      const authMethods = [
-        // Method 1: Standard OAuth2 password grant
-        {
-          endpoint: '/oauth2/token',
-          data: {
-            grant_type: 'password',
-            username: this.tenant.sugarCrmUsername,
-            password: this.tenant.sugarCrmPassword,
-            client_id: 'sugar',
-            client_secret: '',
-          }
-        },
-        // Method 2: With platform parameter
-        {
-          endpoint: '/oauth2/token',
-          data: {
-            grant_type: 'password',
-            username: this.tenant.sugarCrmUsername,
-            password: this.tenant.sugarCrmPassword,
-            client_id: 'sugar',
-            client_secret: '',
-            platform: 'base',
-          }
-        },
-        // Method 3: Legacy login endpoint (some older instances)
-        {
-          endpoint: '/oauth2/login',
-          data: {
-            username: this.tenant.sugarCrmUsername,
-            password: this.tenant.sugarCrmPassword,
-          }
-        }
-      ];
-
-      let lastError;
-      for (const method of authMethods) {
-        try {
-          console.log(`[SugarCRM] Trying ${method.endpoint}...`);
-          response = await this.client.post(method.endpoint, method.data);
-          console.log(`[SugarCRM] Authentication successful with ${method.endpoint}`);
-          break;
-        } catch (error: any) {
-          lastError = error;
-          console.log(`[SugarCRM] ${method.endpoint} failed: ${error.response?.data?.error_message || error.message}`);
-        }
-      }
-
-      if (!response) {
-        throw lastError;
-      }
+      const response = await this.client.post('/oauth2/token', {
+        grant_type: 'password',
+        username: this.tenant.sugarCrmUsername,
+        password: this.tenant.sugarCrmPassword,
+        client_id: 'sugar',
+        client_secret: '',
+        platform: 'pandadoc_integration', // Custom platform to avoid conflicts
+      });
 
       this.accessToken = response.data.access_token;
       this.refreshToken = response.data.refresh_token;
@@ -117,7 +72,7 @@ export class SugarCRMService {
         refresh_token: this.refreshToken,
         client_id: 'sugar',
         client_secret: '',
-        platform: 'base',
+        platform: 'pandadoc_integration',
       });
 
       this.accessToken = response.data.access_token;
@@ -127,42 +82,32 @@ export class SugarCRMService {
       this.tokenExpiry = new Date(Date.now() + (expiresIn - 300) * 1000);
       
       this.client.defaults.headers.common['Authorization'] = `Bearer ${this.accessToken}`;
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.error_message || error.message;
-      throw new Error(`SugarCRM token refresh failed: ${errorMessage}`);
-    }
-  }
-
-  private async ensureAuthenticated(): Promise<void> {
-    if (!this.accessToken || !this.tokenExpiry || new Date() >= this.tokenExpiry) {
+    } catch (error) {
+      // If refresh fails, re-authenticate
       await this.authenticate();
     }
   }
 
-  async testConnection(): Promise<{ success: boolean; message: string }> {
-    try {
-      await this.ensureAuthenticated();
-      
-      // Test by getting the current user info
-      const response = await this.client.get('/me');
-      
-      return {
-        success: true,
-        message: `Connected successfully. User: ${response.data.user_name || 'Unknown'}`
-      };
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.error_message || error.message;
-      return {
-        success: false,
-        message: `Connection failed: ${errorMessage}`
-      };
+  private async ensureAuthenticated(): Promise<void> {
+    if (!this.accessToken || (this.tokenExpiry && new Date() >= this.tokenExpiry)) {
+      if (this.refreshToken) {
+        await this.refreshAccessToken();
+      } else {
+        await this.authenticate();
+      }
     }
   }
 
   async getRecord(module: string, recordId: string): Promise<SugarCRMRecord> {
-    // Try real API first, fallback to mock data if API fails
+    // For UAT testing, use mock data if available
+    if (process.env.NODE_ENV === 'development' && mockRecords[module]?.[recordId]) {
+      console.log(`[UAT Mode] Using mock data for ${module} record ${recordId}`);
+      return mockRecords[module][recordId];
+    }
+
+    await this.ensureAuthenticated();
+
     try {
-      await this.ensureAuthenticated();
       const response = await this.client.get(`/${module}/${recordId}`);
       return response.data;
     } catch (error: any) {
@@ -172,24 +117,15 @@ export class SugarCRMService {
         const retryResponse = await this.client.get(`/${module}/${recordId}`);
         return retryResponse.data;
       }
-      
-      // Fallback to mock data in development if API fails
-      if (process.env.NODE_ENV === 'development' && mockRecords[module]?.[recordId]) {
-        console.log(`[Fallback] Using mock data for ${module} record ${recordId}`);
-        return mockRecords[module][recordId];
-      }
-      
       const errorMessage = error.response?.data?.error_message || error.message;
       throw new Error(`Failed to fetch ${module} record ${recordId}: ${errorMessage}`);
     }
   }
 
   async getModuleFields(module: string, filterType?: 'file_attachment' | 'all'): Promise<SugarCRMField[]> {
-    // Try real SugarCRM API first
+    // Always try real SugarCRM API first, only use mock data as fallback
     try {
-      console.log(`[SugarCRM] Attempting to fetch fields for module: ${module} from ${this.tenant.sugarCrmUrl}`);
       await this.ensureAuthenticated();
-      console.log(`[SugarCRM] Making API call to: ${this.client.defaults.baseURL}/${module}/fields`);
       const response = await this.client.get(`/${module}/fields`);
       const fields = response.data.fields || response.data;
       let allFields = Object.values(fields).map((field: any) => ({
@@ -273,9 +209,8 @@ export class SugarCRMService {
 
         return allFields;
       }
-      
       const errorMessage = error.response?.data?.error_message || error.message;
-      console.warn(`[SugarCRM] API failed for ${module} fields: ${errorMessage}. Status: ${error.response?.status}. Falling back to mock data.`);
+      console.warn(`SugarCRM API failed for ${module} fields: ${errorMessage}. Falling back to mock data.`);
       
       // Fallback to mock data in development if API fails
       if (process.env.NODE_ENV === 'development') {
@@ -283,7 +218,7 @@ export class SugarCRMService {
           key.toLowerCase() === module.toLowerCase()
         );
         if (moduleKey && moduleSchemas[moduleKey]) {
-          console.log(`[API Fallback] Using mock schema for ${module} module`);
+          console.log(`[UAT Mode] Using mock schema for ${module} module (API fallback)`);
           let fields = moduleSchemas[moduleKey];
           
           // Filter for file attachment fields if requested
@@ -341,13 +276,13 @@ export class SugarCRMService {
     }
   }
 
-  async createNote(recordId: string, subject: string, description: string): Promise<any> {
+  async createNote(module: string, recordId: string, subject: string, description?: string): Promise<any> {
     await this.ensureAuthenticated();
-    
+
     const noteData = {
       name: subject,
-      description: description,
-      parent_type: 'Opportunities',
+      description: description || '',
+      parent_type: module,
       parent_id: recordId,
     };
 
@@ -369,9 +304,11 @@ export class SugarCRMService {
     const tokens: Record<string, string> = {};
     
     for (const [key, value] of Object.entries(record)) {
-      tokens[key] = String(value || '');
+      if (value !== null && value !== undefined) {
+        tokens[`{{${key}}}`] = String(value);
+      }
     }
-    
+
     return tokens;
   }
 }
