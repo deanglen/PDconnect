@@ -13,12 +13,11 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-// Quick fix: Use admin token for immediate access
+// For production: Use session-based authentication
 function getAuthHeaders(): HeadersInit {
-  // For now, use the admin token to get past the authentication issue
-  return {
-    "Authorization": "Bearer demo-admin-token-2025"
-  };
+  // In production, rely on session cookies for authentication
+  // Don't send admin token - use proper session authentication
+  return {};
 }
 
 export async function apiRequest(

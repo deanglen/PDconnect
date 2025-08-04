@@ -30,12 +30,13 @@ router.post("/login", async (req, res) => {
 
     const sessionToken = await AuthService.createSession(user.id);
     
-    // Set secure HTTP-only cookie
+    // Set secure HTTP-only cookie with production-compatible settings
     res.cookie("sessionToken", sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true, // Always secure for production HTTPS
+      sameSite: "none", // Required for cross-origin in Replit production
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: "/", // Explicit path
     });
 
     // Remove sensitive information from response
