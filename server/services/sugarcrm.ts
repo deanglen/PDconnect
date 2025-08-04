@@ -200,6 +200,28 @@ export class SugarCRMService {
     }
   }
 
+  async getRecords(module: string, limit: number = 10): Promise<any[]> {
+    try {
+      console.log(`[SugarCRM] Fetching ${limit} records from ${module} module`);
+      
+      await this.ensureAuthenticated();
+      
+      const response = await this.client.get(`/${module}`, {
+        params: {
+          max_num: limit,
+          offset: 0,
+          fields: 'id,name,date_entered,date_modified'
+        }
+      });
+
+      console.log(`[SugarCRM] Retrieved ${response.data.records?.length || 0} records from ${module}`);
+      return response.data.records || [];
+    } catch (error: any) {
+      console.error(`[SugarCRM] Error fetching records from ${module}:`, error.message);
+      throw new Error(`Failed to fetch records from ${module}: ${error.message}`);
+    }
+  }
+
   async getModuleFields(module: string, filterType?: 'file_attachment' | 'all'): Promise<SugarCRMField[]> {
     // Try real SugarCRM API first
     try {
@@ -267,7 +289,7 @@ export class SugarCRMService {
         console.log(`[SugarCRM] Detected metadata template format, using standard ${module} fields`);
         fields = {};
         
-        // Create standard Opportunity fields based on SugarCRM structure
+        // Create comprehensive Opportunity fields based on real SugarCRM structure
         if (module.toLowerCase() === 'opportunities') {
           fields = {
             id: { name: 'id', label: 'ID', type: 'id', required: true },
@@ -283,7 +305,26 @@ export class SugarCRMService {
             assigned_user_id: { name: 'assigned_user_id', label: 'Assigned User ID', type: 'id', required: false },
             created_by_name: { name: 'created_by_name', label: 'Created By', type: 'relate', required: false },
             date_entered: { name: 'date_entered', label: 'Date Created', type: 'datetime', required: false },
-            date_modified: { name: 'date_modified', label: 'Date Modified', type: 'datetime', required: false }
+            date_modified: { name: 'date_modified', label: 'Date Modified', type: 'datetime', required: false },
+            // Additional standard SugarCRM Opportunity fields
+            opportunity_type: { name: 'opportunity_type', label: 'Type', type: 'enum', required: false },
+            lead_source: { name: 'lead_source', label: 'Lead Source', type: 'enum', required: false },
+            campaign_name: { name: 'campaign_name', label: 'Campaign', type: 'relate', required: false },
+            campaign_id: { name: 'campaign_id', label: 'Campaign ID', type: 'id', required: false },
+            next_step: { name: 'next_step', label: 'Next Step', type: 'varchar', required: false },
+            currency_id: { name: 'currency_id', label: 'Currency', type: 'id', required: false },
+            base_rate: { name: 'base_rate', label: 'Base Rate', type: 'decimal', required: false },
+            amount_usdollar: { name: 'amount_usdollar', label: 'Amount (USD)', type: 'currency', required: false },
+            best_case: { name: 'best_case', label: 'Best Case', type: 'currency', required: false },
+            worst_case: { name: 'worst_case', label: 'Worst Case', type: 'currency', required: false },
+            commit_stage: { name: 'commit_stage', label: 'Commit Stage', type: 'enum', required: false },
+            closed_timestamp: { name: 'closed_timestamp', label: 'Closed Timestamp', type: 'datetime', required: false },
+            created_by: { name: 'created_by', label: 'Created By ID', type: 'id', required: false },
+            modified_user_id: { name: 'modified_user_id', label: 'Modified By ID', type: 'id', required: false },
+            modified_by_name: { name: 'modified_by_name', label: 'Modified By', type: 'relate', required: false },
+            team_id: { name: 'team_id', label: 'Team ID', type: 'id', required: false },
+            team_set_id: { name: 'team_set_id', label: 'Team Set ID', type: 'id', required: false },
+            acl_team_set_id: { name: 'acl_team_set_id', label: 'ACL Team Set ID', type: 'id', required: false }
           };
         } else {
           // For other modules, create basic fields
@@ -310,9 +351,9 @@ export class SugarCRMService {
       );
       
       if (isTemplateResponse) {
-        console.log(`[SugarCRM] Detected template response format, using standard ${module} fields`);
-        // Use our hardcoded fields instead of trying to parse templates
-        return module.toLowerCase() === 'opportunities' ? [
+        console.log(`[SugarCRM] Detected template response format, using comprehensive ${module} fields`);
+        // Use our comprehensive hardcoded fields instead of trying to parse templates
+        const comprehensiveOpportunityFields = [
           { name: 'id', label: 'ID', type: 'id', required: true },
           { name: 'name', label: 'Opportunity Name', type: 'varchar', required: true },
           { name: 'amount', label: 'Amount', type: 'currency', required: false },
@@ -326,8 +367,29 @@ export class SugarCRMService {
           { name: 'assigned_user_id', label: 'Assigned User ID', type: 'id', required: false },
           { name: 'created_by_name', label: 'Created By', type: 'relate', required: false },
           { name: 'date_entered', label: 'Date Created', type: 'datetime', required: false },
-          { name: 'date_modified', label: 'Date Modified', type: 'datetime', required: false }
-        ] : [
+          { name: 'date_modified', label: 'Date Modified', type: 'datetime', required: false },
+          // Additional standard SugarCRM Opportunity fields including requested ones
+          { name: 'opportunity_type', label: 'Type', type: 'enum', required: false },
+          { name: 'lead_source', label: 'Lead Source', type: 'enum', required: false },
+          { name: 'campaign_name', label: 'Campaign', type: 'relate', required: false },
+          { name: 'campaign_id', label: 'Campaign ID', type: 'id', required: false },
+          { name: 'next_step', label: 'Next Step', type: 'varchar', required: false },
+          { name: 'currency_id', label: 'Currency', type: 'id', required: false },
+          { name: 'base_rate', label: 'Base Rate', type: 'decimal', required: false },
+          { name: 'amount_usdollar', label: 'Amount (USD)', type: 'currency', required: false },
+          { name: 'best_case', label: 'Best Case', type: 'currency', required: false },
+          { name: 'worst_case', label: 'Worst Case', type: 'currency', required: false },
+          { name: 'commit_stage', label: 'Commit Stage', type: 'enum', required: false },
+          { name: 'closed_timestamp', label: 'Closed Timestamp', type: 'datetime', required: false },
+          { name: 'created_by', label: 'Created By ID', type: 'id', required: false },
+          { name: 'modified_user_id', label: 'Modified By ID', type: 'id', required: false },
+          { name: 'modified_by_name', label: 'Modified By', type: 'relate', required: false },
+          { name: 'team_id', label: 'Team ID', type: 'id', required: false },
+          { name: 'team_set_id', label: 'Team Set ID', type: 'id', required: false },
+          { name: 'acl_team_set_id', label: 'ACL Team Set ID', type: 'id', required: false }
+        ];
+        
+        return module.toLowerCase() === 'opportunities' ? comprehensiveOpportunityFields : [
           { name: 'id', label: 'ID', type: 'id', required: true },
           { name: 'name', label: 'Name', type: 'varchar', required: true },
           { name: 'date_entered', label: 'Date Created', type: 'datetime', required: false },
