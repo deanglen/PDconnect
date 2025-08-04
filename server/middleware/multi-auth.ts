@@ -87,8 +87,33 @@ async function validateTokenAuth(req: Request, config: AuthConfig): Promise<bool
   } catch (error) {
     console.error('Error validating tenant API key:', error);
   }
-  
+
   return false;
+}
+
+// Session-based authentication using cookies
+async function validateSessionAuth(req: Request): Promise<boolean> {
+  try {
+    const sessionToken = req.cookies?.sessionToken;
+    
+    if (!sessionToken) {
+      return false;
+    }
+
+    const { AuthService } = await import("../services/auth");
+    const user = await AuthService.getUserBySession(sessionToken);
+    
+    if (user && user.isActive) {
+      // Attach user to request for downstream use
+      (req as any).user = user;
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error validating session:', error);
+    return false;
+  }
 }
 
 // Basic authentication
@@ -123,26 +148,31 @@ export function createAuthMiddleware() {
 
     let isAuthenticated = false;
 
-    switch (config.mode) {
-      case 'token':
-        isAuthenticated = await validateTokenAuth(req, config);
-        if (!isAuthenticated) {
-          return res.status(401).json({
-            message: "Authentication required",
-            hint: "Use Authorization: Bearer <admin_token_or_personal_api_key>"
-          });
-        }
-        break;
+    // Try session authentication first (for web UI)
+    isAuthenticated = await validateSessionAuth(req);
+    
+    // If session auth fails, try token auth (for API access)
+    if (!isAuthenticated) {
+      switch (config.mode) {
+        case 'token':
+          isAuthenticated = await validateTokenAuth(req, config);
+          if (!isAuthenticated) {
+            return res.status(401).json({
+              message: "Authentication required",
+              hint: "Use Authorization: Bearer <admin_token_or_personal_api_key>"
+            });
+          }
+          break;
 
-      case 'basic':
-        isAuthenticated = validateBasicAuth(req, config);
-        if (!isAuthenticated) {
-          res.setHeader('WWW-Authenticate', 'Basic realm="Admin Panel"');
-          return res.status(401).json({
-            message: "Basic authentication required",
-            hint: "Use username:password credentials"
-          });
-        }
+        case 'basic':
+          isAuthenticated = validateBasicAuth(req, config);
+          if (!isAuthenticated) {
+            res.setHeader('WWW-Authenticate', 'Basic realm="Admin Panel"');
+            return res.status(401).json({
+              message: "Basic authentication required",
+              hint: "Use username:password credentials"
+            });
+          }
         break;
 
       case 'oauth':
@@ -160,6 +190,7 @@ export function createAuthMiddleware() {
         return res.status(500).json({
           message: "Invalid authentication mode configured"
         });
+      }
     }
 
     next();
