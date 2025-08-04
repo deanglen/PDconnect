@@ -617,46 +617,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const sugarService = new SugarCRMService(tenant);
         
-        // In development mode, mock data is available immediately without timeout concerns
-        if (process.env.NODE_ENV === 'development') {
-          const fields = await sugarService.getModuleFields(module as string);
-          
-          // Add unmapped fields from mock schema (limit to prevent UI freeze)
-          additionalTokens = fields
-            .filter(field => field && field.name && !mappings.some(m => m.sugarField === field.name))
-            .slice(0, 10) // Limit to 10 fields to prevent browser freeze
-            .map(field => ({
-              name: field.name,
-              label: field.label || field.name,
-              type: field.type || 'unknown',
-              token: `{{${field.name}}}`,
-              mapped: false,
-              pandaDocToken: undefined,
-            }));
-        } else {
-          // Production mode with timeout and conservative limit
-          if (mappings.length < 10) {
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('SugarCRM API timeout')), 1500)
-            );
-            
-            const fieldsPromise = sugarService.getModuleFields(module as string);
-            const fields = await Promise.race([fieldsPromise, timeoutPromise]) as any[];
-            
-            // Add unmapped fields (limit to 20 to prevent browser freeze)
-            additionalTokens = fields
-              .filter(field => !mappings.some(m => m.sugarField === field.name))
-              .slice(0, 20)
-              .map(field => ({
-                name: field.name,
-                label: field.label,
-                type: field.type,
-                token: `{{${field.name}}}`,
-                mapped: false,
-                pandaDocToken: undefined,
-              }));
-          }
-        }
+        // Use enhanced field discovery that includes comprehensive field sets
+        const fields = await sugarService.getModuleFields(module as string);
+        
+        // Add all unmapped fields from enhanced field discovery (no artificial limits)
+        additionalTokens = fields
+          .filter(field => field && field.name && !mappings.some(m => m.sugarField === field.name))
+          .map(field => ({
+            name: field.name,
+            label: field.label || field.name,
+            type: field.type || 'unknown',
+            token: `{{${field.name}}}`,
+            mapped: false,
+            pandaDocToken: undefined,
+          }));
+        
+        console.log(`[Tokens] Found ${fields.length} total fields, ${additionalTokens.length} unmapped for ${module}`);
       } catch (error) {
         console.warn('SugarCRM fields unavailable, using mappings only:', error);
       }
