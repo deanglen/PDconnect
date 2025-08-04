@@ -10,7 +10,7 @@ export function useAuth() {
   });
 
   const logoutMutation = useMutation({
-    mutationFn: () => apiRequest("/api/auth/logout", { method: "POST" }),
+    mutationFn: () => apiRequest("/api/auth/logout", "POST"),
     onSuccess: () => {
       queryClient.clear();
       window.location.href = "/";

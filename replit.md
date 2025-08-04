@@ -22,7 +22,7 @@ Preferred communication style: Simple, everyday language.
 - **Runtime**: Node.js with Express.js REST API
 - **Language**: TypeScript with ESM modules
 - **Database**: PostgreSQL with Drizzle ORM (Neon serverless PostgreSQL)
-- **Authentication**: Custom session-based authentication
+- **Authentication**: Comprehensive username/password authentication with secure session management using HTTP-only cookies. Hybrid system supporting both web UI authentication and API key authentication for external integrations.
 - **External APIs**: SugarCRM REST API (v11+), PandaDoc API
 
 ### Multi-Tenant Design
@@ -41,7 +41,7 @@ The application supports multi-tenancy, providing isolated configurations for ea
 - **Workflow System**: Supports advanced IF/THEN/ELSE logic, visual and JSON-based configuration, and multiple actions per event.
 - **API Compliance**: Upgraded to SugarCRM REST API v11 with OAuth2 and custom platform authentication. PandaDoc webhooks use HMAC-SHA256 signature verification.
 - **Direct Document Creation API**: A `/create-doc` endpoint allows on-demand document creation, fetching live SugarCRM data, generating dynamic tokens, and handling recipient mapping.
-- **User Management**: Comprehensive role-based access control (super_admin, admin, viewer) with personal API keys, CRUD operations, tenant-specific access, and professional login interface with secure authentication.
+- **User Management**: Comprehensive role-based access control (super_admin, admin, viewer) with personal API keys, CRUD operations, tenant-specific access, and professional username/password login interface. Features secure session management, password hashing with bcrypt, and both web UI and API authentication methods.
 - **Operational Excellence**: Includes a `/health` endpoint, enhanced logging with sensitive data redaction, and an automatic retry queue with exponential backoff for failed operations.
 - **Performance Optimization**: Client-side optimizations for field mapping UI and JSON view/edit capabilities.
 - **Tenant-Specific API Keys**: Enhanced authentication system with tenant-specific integration API keys for better SugarCRM integration. Each tenant can generate unique API keys that automatically identify the tenant without requiring explicit tenantId in requests.

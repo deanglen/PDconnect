@@ -24,10 +24,7 @@ export default function Login() {
 
   const loginMutation = useMutation({
     mutationFn: (credentials: LoginRequest) =>
-      apiRequest("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify(credentials),
-      }),
+      apiRequest("/api/auth/login", "POST", credentials),
     onSuccess: () => {
       // Redirect to home page or refresh to trigger auth check
       window.location.href = "/";
