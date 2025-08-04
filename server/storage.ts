@@ -1,9 +1,9 @@
 import { 
-  users, tenants, fieldMappings, workflows, webhookLogs, documents, documentTemplates,
+  users, tenants, fieldMappings, workflows, webhookLogs, documents, documentTemplates, sessions,
   type User, type UpsertUser, type InsertUser, type Tenant, type InsertTenant,
   type FieldMapping, type InsertFieldMapping, type Workflow, type InsertWorkflow,
   type WebhookLog, type InsertWebhookLog, type Document, type InsertDocument,
-  type DocumentTemplate, type InsertDocumentTemplate
+  type DocumentTemplate, type InsertDocumentTemplate, type Session
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, ilike } from "drizzle-orm";
@@ -12,13 +12,21 @@ export interface IStorage {
   // User methods  
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByResetToken(token: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  updateUser(id: string, user: Partial<InsertUser>): Promise<User>;
+  updateUser(id: string, user: Partial<User>): Promise<User>;
   deleteUser(id: string): Promise<void>;
   generateApiKey(userId: string): Promise<string>;
   validateApiKey(apiKey: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   upsertUser(user: UpsertUser): Promise<User>;
+
+  // Session methods
+  createSession(session: { sessionToken: string; userId: string; expires: Date; }): Promise<Session>;
+  getSessionByToken(sessionToken: string): Promise<Session | undefined>;
+  deleteSession(sessionId: string): Promise<void>;
+  deleteExpiredSessions(): Promise<void>;
 
   // Tenant methods
   getTenants(): Promise<Tenant[]>;
@@ -77,7 +85,51 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async createUser(userData: InsertUser): Promise<User> {
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.passwordResetToken, token));
+    return user || undefined;
+  }
+
+  // Session management methods  
+  async createSession(sessionData: { sessionToken: string; userId: string; expires: Date }) {
+    const [session] = await db.insert(sessions).values(sessionData).returning();
+    return session;
+  }
+
+  async getSessionByToken(sessionToken: string) {
+    const [session] = await db.select().from(sessions).where(eq(sessions.sessionToken, sessionToken));
+    return session || undefined;
+  }
+
+  async deleteSession(sessionToken: string) {
+    await db.delete(sessions).where(eq(sessions.sessionToken, sessionToken));
+  }
+
+  async deleteExpiredSessions() {
+    await db.delete(sessions).where(sql`expires < NOW()`);
+  }
+
+  async updateUserLoginTime(userId: string) {
+    await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, userId));
+  }
+
+  async updateUserPassword(userId: string, passwordHash: string) {
+    await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+  }
+
+  async updateUserResetToken(userId: string, token: string | null, expires: Date | null) {
+    await db.update(users).set({ 
+      passwordResetToken: token,
+      passwordResetExpires: expires
+    }).where(eq(users.id, userId));
+  }
+
+  async createUser(userData: any): Promise<User> {
     try {
       // Generate unique API key for new user
       const apiKey = `user_${Date.now()}_${Math.random().toString(36).substr(2, 12)}`;
@@ -93,7 +145,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateUser(id: string, userData: Partial<InsertUser>): Promise<User> {
+  async updateUser(id: string, userData: Partial<User>): Promise<User> {
     const [user] = await db
       .update(users)
       .set({
@@ -176,6 +228,25 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  // Session methods
+  async createSession(sessionData: { sessionToken: string; userId: string; expires: Date; }): Promise<Session> {
+    const [session] = await db.insert(sessions).values(sessionData).returning();
+    return session;
+  }
+
+  async getSessionByToken(sessionToken: string): Promise<Session | undefined> {
+    const [session] = await db.select().from(sessions).where(eq(sessions.sessionToken, sessionToken));
+    return session || undefined;
+  }
+
+  async deleteSession(sessionId: string): Promise<void> {
+    await db.delete(sessions).where(eq(sessions.id, sessionId));
+  }
+
+  async deleteExpiredSessions(): Promise<void> {
+    await db.delete(sessions).where(sql`expires < NOW()`);
   }
 
 

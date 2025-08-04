@@ -1,88 +1,97 @@
 import type { Request, Response, NextFunction } from "express";
+import { AuthService } from "../services/auth";
 import { storage } from "../storage";
+import type { User } from "@shared/schema";
 
-// Extend Express Request type to include user data
+// Extend Express Request type to include user
 declare global {
   namespace Express {
     interface Request {
-      user?: {
-        claims: {
-          sub: string;
-          email?: string;
-          first_name?: string;
-          last_name?: string;
-          profile_image_url?: string;
-        };
-        access_token?: string;
-        refresh_token?: string;
-        expires_at?: number;
-      };
+      user?: User;
     }
   }
 }
 
-export interface AuthenticatedUser {
-  id: string;
-  email?: string;
-  firstName?: string;
-  lastName?: string;
-  role: string;
-  tenantAccess: string[];
-}
-
-export async function requireAuth(req: Request, res: Response, next: NextFunction) {
-  if (!req.isAuthenticated() || !req.user?.claims?.sub) {
-    return res.status(401).json({ message: "Authentication required" });
-  }
-
+/**
+ * Middleware to authenticate requests with session cookies
+ */
+export const optionalAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = await storage.getUser(req.user.claims.sub);
-    if (!user) {
-      return res.status(401).json({ message: "User not found" });
+    const sessionToken = req.cookies?.sessionToken;
+    
+    if (sessionToken) {
+      const user = await AuthService.getUserBySession(sessionToken);
+      req.user = user || undefined;
     }
-
-    // Attach user data to request
-    (req as any).authUser = user;
+    
     next();
   } catch (error) {
-    console.error("Auth middleware error:", error);
-    res.status(500).json({ message: "Authentication error" });
+    console.error("Optional auth middleware error:", error);
+    next();
   }
-}
+};
 
-export function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  const authUser = (req as any).authUser as AuthenticatedUser;
-  
-  if (!authUser || authUser.role !== "admin") {
-    return res.status(403).json({ message: "Admin access required" });
-  }
-  
-  next();
-}
-
-export function requireTenantAccess(tenantId: string) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const authUser = (req as any).authUser as AuthenticatedUser;
+/**
+ * Middleware to require authentication
+ */
+export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const sessionToken = req.cookies?.sessionToken;
     
-    if (!authUser) {
+    if (!sessionToken) {
       return res.status(401).json({ message: "Authentication required" });
     }
 
-    // Admin has access to everything
-    if (authUser.role === "admin") {
-      return next();
-    }
-
-    // Check if user has access to this tenant
-    if (!authUser.tenantAccess.includes(tenantId)) {
-      return res.status(403).json({ message: "Access denied to this tenant" });
-    }
+    const user = await AuthService.getUserBySession(sessionToken);
     
-    next();
-  };
-}
+    if (!user) {
+      return res.status(401).json({ message: "Invalid or expired session" });
+    }
 
-export function canAccessTenant(authUser: AuthenticatedUser, tenantId: string): boolean {
-  if (authUser.role === "admin") return true;
-  return authUser.tenantAccess.includes(tenantId);
-}
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error("Require auth middleware error:", error);
+    res.status(500).json({ message: "Authentication error" });
+  }
+};
+
+/**
+ * Middleware to require admin role
+ */
+export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+
+  if (!["super_admin", "admin"].includes(req.user.role || "")) {
+    return res.status(403).json({ message: "Admin access required" });
+  }
+
+  next();
+};
+
+/**
+ * Middleware to require API key authentication (for external integrations)
+ */
+export const requireApiKey = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const apiKey = req.headers.authorization?.replace("Bearer ", "");
+    
+    if (!apiKey) {
+      return res.status(401).json({ message: "API key required" });
+    }
+
+    const user = await storage.getUserByApiKey(apiKey);
+    
+    if (!user || !user.isActive) {
+      return res.status(401).json({ message: "Invalid API key" });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error("API key auth middleware error:", error);
+    res.status(500).json({ message: "Authentication error" });
+  }
+};

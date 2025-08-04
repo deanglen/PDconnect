@@ -6,17 +6,29 @@ import { z } from "zod";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: varchar("username").unique().notNull(), // Username for login
   email: varchar("email").unique(),
+  passwordHash: varchar("password_hash").notNull(), // Bcrypt hashed password
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   role: text("role").default("viewer"), // "super_admin", "admin", "viewer"  
   isActive: boolean("is_active").default(true),
   tenantAccess: jsonb("tenant_access").$type<string[]>().default([]), // Array of tenant IDs user can access
-  apiKey: varchar("api_key").unique(), // Personal API key for this user
+  apiKey: varchar("api_key").unique(), // Personal API key for this user (optional, for API access)
   lastLoginAt: timestamp("last_login_at"),
+  passwordResetToken: varchar("password_reset_token"), // For password reset functionality
+  passwordResetExpires: timestamp("password_reset_expires"), // Reset token expiration
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const sessions = pgTable("sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionToken: varchar("session_token").unique().notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  expires: timestamp("expires").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const tenants = pgTable("tenants", {
@@ -169,11 +181,28 @@ export const documentTemplatesRelations = relations(documentTemplates, ({ one })
 
 // Insert schemas for user management
 export const insertUserSchema = createInsertSchema(users).extend({
+  username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
   role: z.enum(["super_admin", "admin", "viewer"]).default("viewer"),
   isActive: z.boolean().default(true),
   tenantAccess: z.array(z.string()).default([]),
-}).omit({ id: true, apiKey: true, lastLoginAt: true, createdAt: true, updatedAt: true });
+}).omit({ id: true, passwordHash: true, apiKey: true, lastLoginAt: true, passwordResetToken: true, passwordResetExpires: true, createdAt: true, updatedAt: true });
+
+export const loginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Reset token is required"),
+  newPassword: z.string().min(8, "Password must be at least 8 characters"),
+});
 
 export const updateUserSchema = insertUserSchema.partial();
 
@@ -217,11 +246,17 @@ export const insertDocumentTemplateSchema = createInsertSchema(documentTemplates
   updatedAt: true,
 });
 
+// Authentication types
+export type LoginRequest = z.infer<typeof loginSchema>;
+export type ChangePasswordRequest = z.infer<typeof changePasswordSchema>;
+export type ResetPasswordRequest = z.infer<typeof resetPasswordSchema>;
+
 // User management types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpdateUser = z.infer<typeof updateUserSchema>;
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+export type Session = typeof sessions.$inferSelect;
 export type InsertTenant = z.infer<typeof insertTenantSchema>;
 export type Tenant = typeof tenants.$inferSelect;
 export type InsertFieldMapping = z.infer<typeof insertFieldMappingSchema>;

@@ -1,54 +1,28 @@
-import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  isActive: boolean;
-  tenantAccess: string[];
-  lastLoginAt?: string;
-  createdAt: string;
-  profileImageUrl?: string | null;
-}
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { User } from "@shared/schema";
 
 export function useAuth() {
-  const hasApiKey = !!(localStorage.getItem('apiKey') || localStorage.getItem('adminToken'));
-  
   const { data: user, isLoading, error } = useQuery<User>({
-    queryKey: ["/api/users/me"],
+    queryKey: ["/api/auth/me"],
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    enabled: hasApiKey, // Only query if we have an API key
-    throwOnError: false, // Don't throw errors, handle them gracefully
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: () => apiRequest("/api/auth/logout", { method: "POST" }),
+    onSuccess: () => {
+      queryClient.clear();
+      window.location.href = "/";
+    },
   });
 
   return {
     user,
-    isLoading: hasApiKey ? isLoading : false, // If no API key, not loading
+    isLoading,
     isAuthenticated: !!user,
     error,
+    logout: () => logoutMutation.mutate(),
+    isLoggingOut: logoutMutation.isPending,
   };
-}
-
-export function logout() {
-  // Clear API key from localStorage if stored there
-  localStorage.removeItem('apiKey');
-  localStorage.removeItem('adminToken');
-  
-  // Clear any cached query data
-  if (typeof window !== 'undefined') {
-    window.location.href = '/';
-    window.location.reload();
-  }
-}
-
-export function getStoredApiKey(): string | null {
-  return localStorage.getItem('apiKey') || localStorage.getItem('adminToken');
-}
-
-export function setStoredApiKey(apiKey: string) {
-  localStorage.setItem('apiKey', apiKey);
 }

@@ -8,6 +8,7 @@ import { WebhookProcessor } from "./services/webhook-processor";
 import { WebhookVerifier } from "./utils/webhook-verifier";
 import { insertTenantSchema, insertFieldMappingSchema, insertWorkflowSchema, insertDocumentSchema, insertDocumentTemplateSchema, insertUserSchema, updateUserSchema } from "@shared/schema";
 import { createAuthMiddleware, getAuthStatus } from "./middleware/multi-auth";
+import authRoutes from "./routes/auth";
 import { z } from "zod";
 import { logger } from "./utils/logger";
 import { retryQueue, initializeRetryQueue } from "./utils/retry-queue";
@@ -53,6 +54,9 @@ function getSampleFieldsForModule(module: string) {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize retry queue processing
   initializeRetryQueue();
+
+  // Authentication routes
+  app.use("/api/auth", authRoutes);
 
   // Multi-cloud authentication middleware - ONLY for API routes
   const authMiddleware = createAuthMiddleware();
