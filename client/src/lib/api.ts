@@ -105,7 +105,9 @@ export const api = {
   },
 
   async deleteTenant(id: string) {
-    await apiRequest(`/api/tenants/${id}`, "DELETE");
+    await apiRequest(`/api/tenants/${id}`, {
+      method: "DELETE",
+    });
     return true;
   },
 
@@ -131,7 +133,9 @@ export const api = {
   },
 
   async deleteFieldMapping(id: string) {
-    await apiRequest(`/api/field-mappings/${id}`, "DELETE");
+    await apiRequest(`/api/field-mappings/${id}`, {
+      method: "DELETE",
+    });
     return true;
   },
 
@@ -155,7 +159,9 @@ export const api = {
   },
 
   async deleteWorkflow(id: string) {
-    await apiRequest(`/api/workflows/${id}`, "DELETE");
+    await apiRequest(`/api/workflows/${id}`, {
+      method: "DELETE",
+    });
     return true;
   },
 
