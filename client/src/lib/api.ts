@@ -113,7 +113,10 @@ export const api = {
   },
 
   async createFieldMapping(data: any) {
-    return await apiRequest("/api/field-mappings", "POST", data);
+    return await apiRequest("/api/field-mappings", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   },
 
   async deleteFieldMapping(id: string) {
