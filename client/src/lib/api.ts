@@ -85,7 +85,10 @@ export const api = {
   },
 
   async createTenant(data: any) {
-    return await apiRequest("/api/tenants", "POST", data);
+    return await apiRequest("/api/tenants", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   },
 
   async updateTenant(id: string, data: any) {
