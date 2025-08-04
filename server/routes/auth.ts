@@ -70,7 +70,12 @@ router.post("/logout", requireAuth, async (req, res) => {
       await AuthService.deleteSession(sessionToken);
     }
     
-    res.clearCookie("sessionToken");
+    res.clearCookie("sessionToken", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      path: "/",
+    });
     res.json({ message: "Logout successful" });
   } catch (error) {
     console.error("Logout error:", error);
