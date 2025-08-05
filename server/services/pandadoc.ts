@@ -121,6 +121,11 @@ export class PandaDocService {
       }
       request.metadata.tenant_id = this.tenant.id;
 
+      console.log('[PandaDoc] Sending document creation request:', {
+        url: '/public/v1/documents',
+        payload: JSON.stringify(request, null, 2)
+      });
+      
       const response = await this.client.post('/public/v1/documents', request);
       return response.data;
     } catch (error: any) {
