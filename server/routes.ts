@@ -64,6 +64,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // SugarCRM Web Logic Hook smart routing (handles all /sugar/* paths)
   app.use("/sugar", sugarWebhookRouter);
   
+  // Smart Routes - Register dynamic routes from database for direct SugarCRM webhook handling
+  const { registerDynamicSmartRoutes } = await import('./services/smart-routes-registry');
+  await registerDynamicSmartRoutes(app);
+  
   // GET endpoint for browser-friendly document creation (testing/UAT) - no auth required for testing
   app.get("/api/create-doc", async (req: Request, res: Response) => {
     try {
