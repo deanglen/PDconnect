@@ -135,6 +135,28 @@ export const documentTemplates = pgTable("document_templates", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Route Template Records - Maps incoming SugarCRM webhook routes to templates
+export const routeTemplateRecords = pgTable("route_template_records", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
+  routePath: text("route_path").notNull(), // e.g., "/generate-opportunity-contract"
+  sugarModule: text("sugar_module").notNull(), // e.g., "Opportunities"
+  templateId: varchar("template_id").notNull().references(() => documentTemplates.id, { onDelete: "cascade" }),
+  // Matching criteria for incoming requests
+  matchCriteria: jsonb("match_criteria").default({}), // Additional field matching (optional)
+  // Webhook configuration
+  requiresAuth: boolean("requires_auth").default(false), // Whether this route requires authentication
+  allowedMethods: jsonb("allowed_methods").default(["POST"]), // Array of allowed HTTP methods
+  // Processing options
+  asyncProcessing: boolean("async_processing").default(false), // Process in background
+  responseFormat: text("response_format").default("json"), // "json" or "redirect"
+  successRedirectUrl: text("success_redirect_url"), // URL to redirect on success (if responseFormat is "redirect")
+  errorRedirectUrl: text("error_redirect_url"), // URL to redirect on error
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const tenantsRelations = relations(tenants, ({ many }) => ({
   fieldMappings: many(fieldMappings),
@@ -142,6 +164,7 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
   webhookLogs: many(webhookLogs),
   documents: many(documents),
   documentTemplates: many(documentTemplates),
+  routeTemplateRecords: many(routeTemplateRecords),
 }));
 
 export const fieldMappingsRelations = relations(fieldMappings, ({ one }) => ({
@@ -172,10 +195,22 @@ export const documentsRelations = relations(documents, ({ one }) => ({
   }),
 }));
 
-export const documentTemplatesRelations = relations(documentTemplates, ({ one }) => ({
+export const documentTemplatesRelations = relations(documentTemplates, ({ one, many }) => ({
   tenant: one(tenants, {
     fields: [documentTemplates.tenantId],
     references: [tenants.id],
+  }),
+  routeTemplateRecords: many(routeTemplateRecords),
+}));
+
+export const routeTemplateRecordsRelations = relations(routeTemplateRecords, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [routeTemplateRecords.tenantId],
+    references: [tenants.id],
+  }),
+  template: one(documentTemplates, {
+    fields: [routeTemplateRecords.templateId],
+    references: [documentTemplates.id],
   }),
 }));
 
@@ -269,3 +304,13 @@ export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Document = typeof documents.$inferSelect;
 export type InsertDocumentTemplate = z.infer<typeof insertDocumentTemplateSchema>;
 export type DocumentTemplate = typeof documentTemplates.$inferSelect;
+
+// Route Template Record schemas and types
+export const insertRouteTemplateRecordSchema = createInsertSchema(routeTemplateRecords).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertRouteTemplateRecord = z.infer<typeof insertRouteTemplateRecordSchema>;
+export type RouteTemplateRecord = typeof routeTemplateRecords.$inferSelect;

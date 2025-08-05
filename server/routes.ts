@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import sugarWebhookRouter from "./routes/sugar-webhook";
 import { SugarCRMService } from "./services/sugarcrm";
 import { PandaDocService, type SugarCRMDocumentRequest } from "./services/pandadoc";
 import { WorkflowEngine } from "./services/workflow";
@@ -59,6 +60,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/auth", authRoutes);
 
   // WEBHOOK ENDPOINTS - MUST BE BEFORE AUTH MIDDLEWARE
+  // SugarCRM Web Logic Hook smart routing (handles all /sugar/* paths)
+  app.use("/sugar", sugarWebhookRouter);
+  
   // GET endpoint for browser-friendly document creation (testing/UAT) - no auth required for testing
   app.get("/api/create-doc", async (req: Request, res: Response) => {
     try {
@@ -435,8 +439,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return handleDocumentCreation(req, res);
   });
 
-  // Shared document creation handler
-  async function handleDocumentCreation(req: Request, res: Response) {
+  // Add all the webhook and API routes
+  addWebhookRoutes(app);
+
+  // Route template management endpoints
+  app.get("/api/route-templates", async (req: Request, res: Response) => {
+    try {
+      const { tenantId } = req.query;
+      const routes = await storage.getRouteTemplateRecords(tenantId as string);
+      res.json(routes);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch route templates" });
+    }
+  });
+
+  app.post("/api/route-templates", async (req: Request, res: Response) => {
+    try {
+      const route = await storage.createRouteTemplateRecord(req.body);
+      res.status(201).json(route);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create route template" });
+    }
+  });
+
+  app.put("/api/route-templates/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const route = await storage.updateRouteTemplateRecord(id, req.body);
+      res.json(route);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update route template" });
+    }
+  });
+
+  app.delete("/api/route-templates/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteRouteTemplateRecord(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete route template" });
+    }
+  });
+
+  const httpServer = createServer(app);
+  return httpServer;
+}
+
+// Shared document creation handler - exported for use by webhook routes
+export async function handleDocumentCreation(req: Request, res: Response) {
     try {
       const { record_id, module, tenant_id, template_id } = req.body;
 
@@ -537,11 +588,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: error instanceof Error ? error.message : "Unknown error occurred" 
       });
     }
-  }
+}
 
-
-
-  // Enhanced webhook management endpoints for admin interface
+// Enhanced webhook management endpoints for admin interface - moving these inside registerRoutes function
+function addWebhookRoutes(app: Express) {
   app.get("/api/webhook-logs", async (req: Request, res: Response) => {
     try {
       const { tenantId, status, eventType } = req.query;

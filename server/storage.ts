@@ -1,9 +1,9 @@
 import { 
-  users, tenants, fieldMappings, workflows, webhookLogs, documents, documentTemplates, sessions,
+  users, tenants, fieldMappings, workflows, webhookLogs, documents, documentTemplates, sessions, routeTemplateRecords,
   type User, type UpsertUser, type InsertUser, type Tenant, type InsertTenant,
   type FieldMapping, type InsertFieldMapping, type Workflow, type InsertWorkflow,
   type WebhookLog, type InsertWebhookLog, type Document, type InsertDocument,
-  type DocumentTemplate, type InsertDocumentTemplate, type Session
+  type DocumentTemplate, type InsertDocumentTemplate, type Session, type RouteTemplateRecord, type InsertRouteTemplateRecord
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, ilike } from "drizzle-orm";
@@ -72,6 +72,21 @@ export interface IStorage {
   createDocumentTemplate(template: InsertDocumentTemplate): Promise<DocumentTemplate>;
   updateDocumentTemplate(id: string, template: Partial<InsertDocumentTemplate>): Promise<DocumentTemplate>;
   deleteDocumentTemplate(id: string): Promise<void>;
+
+  // Route template record methods
+  getRouteTemplateRecords(tenantId?: string): Promise<RouteTemplateRecord[]>;
+  getRouteTemplateRecord(id: string): Promise<RouteTemplateRecord | undefined>;
+  getRouteTemplateRecordByPath(routePath: string): Promise<RouteTemplateRecord[]>;
+  createRouteTemplateRecord(record: InsertRouteTemplateRecord): Promise<RouteTemplateRecord>;
+  updateRouteTemplateRecord(id: string, record: Partial<InsertRouteTemplateRecord>): Promise<RouteTemplateRecord>;
+  deleteRouteTemplateRecord(id: string): Promise<void>;
+
+  // Route template record methods
+  getRouteTemplateRecords(tenantId?: string): Promise<RouteTemplateRecord[]>;
+  getRouteTemplateRecord(id: string): Promise<RouteTemplateRecord | undefined>;
+  createRouteTemplateRecord(route: InsertRouteTemplateRecord): Promise<RouteTemplateRecord>;
+  updateRouteTemplateRecord(id: string, route: Partial<InsertRouteTemplateRecord>): Promise<RouteTemplateRecord>;
+  deleteRouteTemplateRecord(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -506,6 +521,41 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDocumentTemplate(id: string): Promise<void> {
     await db.delete(documentTemplates).where(eq(documentTemplates.id, id));
+  }
+
+  // Route template record methods
+  async getRouteTemplateRecords(tenantId?: string): Promise<RouteTemplateRecord[]> {
+    if (tenantId) {
+      return await db.select().from(routeTemplateRecords)
+        .where(eq(routeTemplateRecords.tenantId, tenantId))
+        .orderBy(desc(routeTemplateRecords.createdAt));
+    }
+    
+    return await db.select().from(routeTemplateRecords)
+      .orderBy(desc(routeTemplateRecords.createdAt));
+  }
+
+  async getRouteTemplateRecord(id: string): Promise<RouteTemplateRecord | undefined> {
+    const [route] = await db.select().from(routeTemplateRecords).where(eq(routeTemplateRecords.id, id));
+    return route || undefined;
+  }
+
+  async createRouteTemplateRecord(route: InsertRouteTemplateRecord): Promise<RouteTemplateRecord> {
+    const [newRoute] = await db.insert(routeTemplateRecords).values(route).returning();
+    return newRoute;
+  }
+
+  async updateRouteTemplateRecord(id: string, route: Partial<InsertRouteTemplateRecord>): Promise<RouteTemplateRecord> {
+    const [updated] = await db
+      .update(routeTemplateRecords)
+      .set({ ...route, updatedAt: new Date() })
+      .where(eq(routeTemplateRecords.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteRouteTemplateRecord(id: string): Promise<void> {
+    await db.delete(routeTemplateRecords).where(eq(routeTemplateRecords.id, id));
   }
 }
 

@@ -12,6 +12,7 @@ const navigation = [
   { name: 'Workflows', href: '/workflows', icon: 'fas fa-project-diagram' },
   { name: 'PD Requests', href: '/documents', icon: 'fas fa-file-alt' },
   { name: 'Token Explorer', href: '/tokens', icon: 'fas fa-tags' },
+  { name: 'Smart Routes', href: '/routes', icon: 'fas fa-route' },
   { name: 'Webhook Logs', href: '/webhooks', icon: 'fas fa-exchange-alt' },
   { name: 'User Management', href: '/users', icon: 'fas fa-users' },
 ];
