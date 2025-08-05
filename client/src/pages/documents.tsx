@@ -80,6 +80,22 @@ export default function PDRequestsPage() {
     enabled: !!selectedTenant && !!formData.sugarModule,
   });
 
+  // Fetch SugarCRM fields for conditions
+  const { data: sugarFields = [], isLoading: fieldsLoading, error: fieldsError } = useQuery({
+    queryKey: ["/api/tenants", selectedTenant, "sugarcrm", "fields", formData.sugarModule],
+    queryFn: async () => {
+      if (!selectedTenant || !formData.sugarModule) return [];
+      const response = await fetch(`/api/tenants/${selectedTenant}/sugarcrm/fields/${formData.sugarModule}`);
+      if (!response.ok) {
+        console.warn(`Failed to fetch SugarCRM fields: ${response.status}`);
+        return [];
+      }
+      return response.json();
+    },
+    enabled: !!selectedTenant && !!formData.sugarModule && showCreateForm,
+    retry: 1, // Only retry once for field fetching
+  });
+
   // Create template mutation
   const createTemplateMutation = useMutation({
     mutationFn: async (data: InsertDocumentTemplate) => {
@@ -713,6 +729,10 @@ export default function PDRequestsPage() {
                   {/* Generation Conditions */}
                   <div className="space-y-3">
                     <Label>Conditions</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Fields are dynamically loaded from your SugarCRM {formData.sugarModule} module, including custom fields.
+                      {fieldsError && " If field loading fails, basic fields are shown as fallback."}
+                    </p>
                     {(formData.generationConditions as any[] || []).map((condition: any, index: number) => (
                       <div key={index} className="grid grid-cols-4 gap-2 p-3 border rounded">
                         <Select 
@@ -724,15 +744,29 @@ export default function PDRequestsPage() {
                           }}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Field" />
+                            <SelectValue placeholder={fieldsLoading ? "Loading fields..." : "Select Field"} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="amount">Amount</SelectItem>
-                            <SelectItem value="sales_stage">Sales Stage</SelectItem>
-                            <SelectItem value="probability">Probability</SelectItem>
-                            <SelectItem value="assigned_user_id">Assigned User</SelectItem>
-                            <SelectItem value="date_closed">Close Date</SelectItem>
-                            <SelectItem value="name">Name</SelectItem>
+                            {fieldsLoading ? (
+                              <SelectItem value="" disabled>Loading SugarCRM fields...</SelectItem>
+                            ) : fieldsError ? (
+                              <SelectItem value="" disabled>Error loading fields. Using defaults...</SelectItem>
+                            ) : sugarFields.length > 0 ? (
+                              sugarFields.map((field: any) => (
+                                <SelectItem key={field.name} value={field.name}>
+                                  {field.label || field.name} ({field.type})
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <>
+                                <SelectItem value="amount">Amount</SelectItem>
+                                <SelectItem value="sales_stage">Sales Stage</SelectItem>
+                                <SelectItem value="probability">Probability</SelectItem>
+                                <SelectItem value="assigned_user_id">Assigned User</SelectItem>
+                                <SelectItem value="date_closed">Close Date</SelectItem>
+                                <SelectItem value="name">Name</SelectItem>
+                              </>
+                            )}
                           </SelectContent>
                         </Select>
                         
