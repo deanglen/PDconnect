@@ -104,21 +104,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Session management methods  
-  async createSession(sessionData: { sessionToken: string; userId: string; expires: Date }) {
+  async createSession(sessionData: { sessionToken: string; userId: string; expires: Date }): Promise<Session> {
     const [session] = await db.insert(sessions).values(sessionData).returning();
     return session;
   }
 
-  async getSessionByToken(sessionToken: string) {
+  async getSessionByToken(sessionToken: string): Promise<Session | undefined> {
     const [session] = await db.select().from(sessions).where(eq(sessions.sessionToken, sessionToken));
     return session || undefined;
   }
 
-  async deleteSession(sessionToken: string) {
+  async deleteSession(sessionToken: string): Promise<void> {
     await db.delete(sessions).where(eq(sessions.sessionToken, sessionToken));
   }
 
-  async deleteExpiredSessions() {
+  async deleteExpiredSessions(): Promise<void> {
     await db.delete(sessions).where(sql`expires < NOW()`);
   }
 
@@ -238,24 +238,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  // Session methods
-  async createSession(sessionData: { sessionToken: string; userId: string; expires: Date; }): Promise<Session> {
-    const [session] = await db.insert(sessions).values(sessionData).returning();
-    return session;
-  }
 
-  async getSessionByToken(sessionToken: string): Promise<Session | undefined> {
-    const [session] = await db.select().from(sessions).where(eq(sessions.sessionToken, sessionToken));
-    return session || undefined;
-  }
-
-  async deleteSession(sessionId: string): Promise<void> {
-    await db.delete(sessions).where(eq(sessions.id, sessionId));
-  }
-
-  async deleteExpiredSessions(): Promise<void> {
-    await db.delete(sessions).where(sql`expires < NOW()`);
-  }
 
 
 

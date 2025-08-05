@@ -443,23 +443,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add all the webhook and API routes
   addWebhookRoutes(app);
 
-  // Route template management endpoints (require authentication)
+  // Route template management endpoints (require web session authentication)
   app.get("/api/route-templates", requireAuth, async (req: Request, res: Response) => {
     try {
       const { tenantId } = req.query;
       const routes = await storage.getRouteTemplateRecords(tenantId as string);
       res.json(routes);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch route templates" });
+    } catch (error: any) {
+      logger.error('Failed to fetch route templates', {}, error);
+      res.status(500).json({ 
+        message: "Failed to fetch route templates",
+        error: error.message 
+      });
     }
   });
 
   app.post("/api/route-templates", requireAuth, async (req: Request, res: Response) => {
     try {
+      const requestId = (req as any).requestId;
+      logger.info('Creating route template', { requestId }, req.body);
+      
+      // Validate required fields
+      const { tenantId, templateId, routePath, sugarModule } = req.body;
+      if (!tenantId || !templateId || !routePath || !sugarModule) {
+        return res.status(400).json({ 
+          message: "Missing required fields",
+          required: ["tenantId", "templateId", "routePath", "sugarModule"]
+        });
+      }
+      
       const route = await storage.createRouteTemplateRecord(req.body);
+      logger.info('Route template created successfully', { requestId }, { routeId: route.id });
       res.status(201).json(route);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to create route template" });
+    } catch (error: any) {
+      const requestId = (req as any).requestId;
+      logger.error('Failed to create route template', { requestId }, error);
+      res.status(500).json({ 
+        message: "Failed to create route template",
+        error: error.message 
+      });
     }
   });
 
@@ -468,8 +490,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const route = await storage.updateRouteTemplateRecord(id, req.body);
       res.json(route);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update route template" });
+    } catch (error: any) {
+      logger.error('Failed to update route template', {}, error);
+      res.status(500).json({ 
+        message: "Failed to update route template",
+        error: error.message 
+      });
     }
   });
 
@@ -478,8 +504,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       await storage.deleteRouteTemplateRecord(id);
       res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete route template" });
+    } catch (error: any) {
+      logger.error('Failed to delete route template', {}, error);
+      res.status(500).json({ 
+        message: "Failed to delete route template",
+        error: error.message 
+      });
     }
   });
 

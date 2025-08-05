@@ -64,7 +64,7 @@ export const requireAdmin = async (req: Request, res: Response, next: NextFuncti
     return res.status(401).json({ message: "Authentication required" });
   }
 
-  if (!["super_admin", "admin"].includes(req.user.role || "")) {
+  if (!["super_admin", "admin"].includes((req.user as any).role || "viewer")) {
     return res.status(403).json({ message: "Admin access required" });
   }
 
@@ -82,7 +82,7 @@ export const requireApiKey = async (req: Request, res: Response, next: NextFunct
       return res.status(401).json({ message: "API key required" });
     }
 
-    const user = await storage.getUserByApiKey(apiKey);
+    const user = await storage.validateApiKey(apiKey);
     
     if (!user || !user.isActive) {
       return res.status(401).json({ message: "Invalid API key" });
