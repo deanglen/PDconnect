@@ -349,6 +349,11 @@ export class DatabaseStorage implements IStorage {
       .set({ ...workflow, updatedAt: new Date() })
       .where(eq(workflows.id, id))
       .returning();
+    
+    if (!updatedWorkflow) {
+      throw new Error(`Workflow with id ${id} not found`);
+    }
+    
     return updatedWorkflow;
   }
 

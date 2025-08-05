@@ -1238,6 +1238,12 @@ function addWebhookRoutes(app: Express) {
       const { id } = req.params;
       const validatedData = insertWorkflowSchema.partial().parse(req.body);
       const workflow = await storage.updateWorkflow(id, validatedData);
+      
+      // Ensure we always return a valid JSON response
+      if (!workflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+      
       res.json(workflow);
     } catch (error) {
       if (error instanceof z.ZodError) {

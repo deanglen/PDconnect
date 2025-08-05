@@ -41,7 +41,16 @@ export async function apiRequest(
   // Return parsed JSON for most requests
   const contentType = res.headers.get('content-type');
   if (contentType && contentType.includes('application/json')) {
-    return await res.json();
+    const text = await res.text();
+    if (text.trim() === '') {
+      return null; // Handle empty JSON responses
+    }
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      console.error('Failed to parse JSON response:', text);
+      throw new Error('Invalid JSON response from server');
+    }
   }
   
   return res;
