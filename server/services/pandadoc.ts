@@ -132,7 +132,7 @@ export class PandaDocService {
         url: '/public/v1/documents',
         method: 'POST',
         headers: {
-          'Authorization': `API-Key ${this.apiKey}`,
+          'Authorization': `API-Key ${this.tenant.pandaDocApiKey}`,
           'Content-Type': 'application/json'
         },
         payload: JSON.stringify(request, null, 2)

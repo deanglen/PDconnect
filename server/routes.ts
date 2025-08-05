@@ -585,10 +585,10 @@ export async function handleDocumentCreation(req: Request, res: Response) {
         template_uuid: templateRecord.pandaDocTemplateId,
         recipients: [
           {
-            email: record.email || 'recipient@example.com',
-            first_name: record.first_name || 'Recipient',
-            last_name: record.last_name || '',
-            role: 'Signer',
+            email: 'dustin.anglen@pandadoc.com',
+            first_name: 'Dustin',
+            last_name: 'Anglen',
+            role: 'Client',
           }
         ],
         tokens,
