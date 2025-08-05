@@ -123,6 +123,11 @@ export class PandaDocService {
 
       console.log('[PandaDoc] Sending document creation request:', {
         url: '/public/v1/documents',
+        method: 'POST',
+        headers: {
+          'Authorization': `API-Key ${this.apiKey}`,
+          'Content-Type': 'application/json'
+        },
         payload: JSON.stringify(request, null, 2)
       });
       
