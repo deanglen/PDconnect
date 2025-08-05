@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { SmartRouteHandler } from "../services/smart-route-handler";
 import { handleDocumentCreation } from "../routes";
+import { storage } from "../storage";
 
 const router = Router();
 
