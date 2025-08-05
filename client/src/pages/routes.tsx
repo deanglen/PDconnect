@@ -61,7 +61,7 @@ export default function Routes() {
 
   // Fetch document templates for selected tenant
   const { data: templates = [] } = useQuery<DocumentTemplate[]>({
-    queryKey: ["/api/document-templates", selectedTenant],
+    queryKey: [`/api/document-templates/${selectedTenant}`],
     enabled: !!selectedTenant,
   });
 

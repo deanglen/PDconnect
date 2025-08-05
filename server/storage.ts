@@ -533,6 +533,12 @@ export class DatabaseStorage implements IStorage {
     return route || undefined;
   }
 
+  async getRouteTemplateRecordByPath(routePath: string): Promise<RouteTemplateRecord[]> {
+    return await db.select().from(routeTemplateRecords)
+      .where(eq(routeTemplateRecords.routePath, routePath))
+      .orderBy(desc(routeTemplateRecords.createdAt));
+  }
+
   async createRouteTemplateRecord(route: InsertRouteTemplateRecord): Promise<RouteTemplateRecord> {
     const [newRoute] = await db.insert(routeTemplateRecords).values(route).returning();
     return newRoute;
