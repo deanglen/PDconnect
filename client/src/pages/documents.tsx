@@ -24,7 +24,7 @@ export default function PDRequestsPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<DocumentTemplate | null>(null);
   const [moduleFilter, setModuleFilter] = useState<string>("");
-  const [configMode, setConfigMode] = useState<'visual' | 'json'>('visual');
+  const [configMode, setConfigMode] = useState<'visual' | 'conditions' | 'json'>('visual');
   const [jsonConfig, setJsonConfig] = useState("");
   
   const [formData, setFormData] = useState<Partial<InsertDocumentTemplate>>({
@@ -38,6 +38,10 @@ export default function PDRequestsPage() {
     defaultRecipients: [],
     tokenMappings: [],
     fieldMappings: [],
+    generationConditions: [],
+    requireAllConditions: true,
+    customConditionsScript: "",
+    skipIfDocumentExists: true,
     isActive: true,
     isDefault: false
   });
@@ -171,6 +175,10 @@ export default function PDRequestsPage() {
       defaultRecipients: [],
       tokenMappings: [],
       fieldMappings: [],
+      generationConditions: [],
+      requireAllConditions: true,
+      customConditionsScript: "",
+      skipIfDocumentExists: true,
       isActive: true,
       isDefault: false
     });
@@ -479,11 +487,15 @@ export default function PDRequestsPage() {
             </DialogTitle>
           </DialogHeader>
           
-          <Tabs value={configMode} onValueChange={(value) => setConfigMode(value as 'visual' | 'json')} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+          <Tabs value={configMode} onValueChange={(value) => setConfigMode(value as 'visual' | 'conditions' | 'json')} className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="visual" className="flex items-center gap-2">
                 <Settings className="h-4 w-4" />
-                Visual Config
+                Basic Config
+              </TabsTrigger>
+              <TabsTrigger value="conditions" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Conditions
               </TabsTrigger>
               <TabsTrigger value="json" className="flex items-center gap-2">
                 <Code2 className="h-4 w-4" />
@@ -670,6 +682,157 @@ export default function PDRequestsPage() {
                 onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isActive: checked }))}
               />
               </div>
+              </TabsContent>
+
+              <TabsContent value="conditions" className="space-y-6 mt-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Document Generation Conditions</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Set conditions that must be met before a document is generated. This helps prevent unnecessary document creation.
+                    </p>
+                  </div>
+
+                  {/* Condition Logic Type */}
+                  <div className="space-y-2">
+                    <Label>Condition Logic</Label>
+                    <Select 
+                      value={formData.requireAllConditions ? "all" : "any"} 
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, requireAllConditions: value === "all" }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">ALL conditions must be met (AND)</SelectItem>
+                        <SelectItem value="any">ANY condition can be met (OR)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Generation Conditions */}
+                  <div className="space-y-3">
+                    <Label>Conditions</Label>
+                    {(formData.generationConditions as any[] || []).map((condition: any, index: number) => (
+                      <div key={index} className="grid grid-cols-4 gap-2 p-3 border rounded">
+                        <Select 
+                          value={condition.field || ""} 
+                          onValueChange={(value) => {
+                            const newConditions = [...(formData.generationConditions as any[] || [])];
+                            newConditions[index] = { ...newConditions[index], field: value };
+                            setFormData(prev => ({ ...prev, generationConditions: newConditions }));
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Field" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="amount">Amount</SelectItem>
+                            <SelectItem value="sales_stage">Sales Stage</SelectItem>
+                            <SelectItem value="probability">Probability</SelectItem>
+                            <SelectItem value="assigned_user_id">Assigned User</SelectItem>
+                            <SelectItem value="date_closed">Close Date</SelectItem>
+                            <SelectItem value="name">Name</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        
+                        <Select 
+                          value={condition.operator || ""} 
+                          onValueChange={(value) => {
+                            const newConditions = [...(formData.generationConditions as any[] || [])];
+                            newConditions[index] = { ...newConditions[index], operator: value };
+                            setFormData(prev => ({ ...prev, generationConditions: newConditions }));
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Operator" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="equals">Equals</SelectItem>
+                            <SelectItem value="not_equals">Not Equals</SelectItem>
+                            <SelectItem value="greater_than">Greater Than</SelectItem>
+                            <SelectItem value="less_than">Less Than</SelectItem>
+                            <SelectItem value="contains">Contains</SelectItem>
+                            <SelectItem value="not_empty">Not Empty</SelectItem>
+                            <SelectItem value="empty">Empty</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        
+                        <Input
+                          placeholder="Value"
+                          value={condition.value || ""}
+                          onChange={(e) => {
+                            const newConditions = [...(formData.generationConditions as any[] || [])];
+                            newConditions[index] = { ...newConditions[index], value: e.target.value };
+                            setFormData(prev => ({ ...prev, generationConditions: newConditions }));
+                          }}
+                        />
+                        
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newConditions = (formData.generationConditions as any[] || []).filter((_, i) => i !== index);
+                            setFormData(prev => ({ ...prev, generationConditions: newConditions }));
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newConditions = [...(formData.generationConditions as any[] || []), { field: "", operator: "", value: "" }];
+                        setFormData(prev => ({ ...prev, generationConditions: newConditions }));
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Condition
+                    </Button>
+                  </div>
+
+                  {/* Advanced Options */}
+                  <div className="space-y-4 pt-4 border-t">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="skipIfDocumentExists">Skip if Document Exists</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Prevent creating duplicate documents for the same record
+                        </p>
+                      </div>
+                      <Switch
+                        id="skipIfDocumentExists"
+                        checked={formData.skipIfDocumentExists ?? true}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, skipIfDocumentExists: checked }))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="customConditionsScript">Custom JavaScript (Advanced)</Label>
+                      <Textarea
+                        id="customConditionsScript"
+                        value={formData.customConditionsScript || ""}
+                        onChange={(e) => setFormData(prev => ({ ...prev, customConditionsScript: e.target.value }))}
+                        placeholder={`// Custom condition logic
+// Return true to generate document, false to skip
+// Available variables: record, tenant, template
+if (record.amount > 1000 && record.sales_stage === "Closed Won") {
+  return true;
+}
+return false;`}
+                        className="min-h-[120px] font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Optional: Write custom JavaScript for complex conditions. Leave empty to use basic conditions above.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </TabsContent>
               
               <TabsContent value="json" className="space-y-6 mt-6">

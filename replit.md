@@ -51,6 +51,7 @@ The application supports multi-tenancy, providing isolated configurations for ea
 - **Dynamic Field Selection**: Intelligent workflow builder with real-time SugarCRM field discovery. API endpoint `/api/tenants/{tenantId}/sugarcrm/fields/{module}` fetches live field metadata with filtering support. Update Record actions show all available fields, while Attach File actions display only file attachment fields. Reduces configuration errors through automated field validation and dropdown selection.
 - **Smart Routes System**: Complete SugarCRM Web Logic Hook automation with route template management. Supports URL pattern matching, tenant/template auto-detection, and seamless integration with existing document creation workflow. Route templates are stored in database with proper authentication requirements and foreign key relationships.
 - **Production Integration Success**: Successfully tested end-to-end document creation from SugarCRM Cloud to PandaDoc with live data. API authentication, recipient configuration, token generation, and document creation all confirmed working (January 2025).
+- **Conditional Document Generation**: Complete conditional logic system for controlling when documents are generated. Supports field-based conditions (equals, greater than, contains, etc.), AND/OR logic, custom JavaScript evaluation, duplicate document detection, and condition preview. UI includes dedicated "Conditions" tab in Document Templates with visual condition builder and advanced scripting capabilities.
 
 ## External Dependencies
 

@@ -436,6 +436,10 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(documents.createdAt));
   }
 
+  async getDocumentsByRecordId(recordId: string): Promise<Document[]> {
+    return await db.select().from(documents).where(eq(documents.sugarRecordId, recordId));
+  }
+
   async getDocument(pandaDocId: string): Promise<Document | undefined> {
     const [document] = await db.select().from(documents).where(eq(documents.pandaDocId, pandaDocId));
     return document || undefined;

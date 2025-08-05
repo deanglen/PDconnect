@@ -130,6 +130,12 @@ export const documentTemplates = pgTable("document_templates", {
   tokenMappings: jsonb("token_mappings").default([]),
   // Field mappings - pre-fill form fields
   fieldMappings: jsonb("field_mappings").default([]),
+  // Conditional logic for when to generate documents
+  generationConditions: jsonb("generation_conditions").default([]), // Array of conditions that must be met
+  requireAllConditions: boolean("require_all_conditions").default(true), // AND vs OR logic
+  // Advanced conditions
+  customConditionsScript: text("custom_conditions_script"), // Optional JavaScript for complex conditions
+  skipIfDocumentExists: boolean("skip_if_document_exists").default(true), // Prevent duplicate generation
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

@@ -579,6 +579,28 @@ export async function handleDocumentCreation(req: Request, res: Response) {
         });
       }
 
+      // Evaluate generation conditions before creating document
+      const { SmartRouteHandler } = await import('./services/smart-route-handler');
+      const shouldGenerate = await SmartRouteHandler.evaluateGenerationConditions(record, templateRecord, tenant);
+      
+      if (!shouldGenerate) {
+        console.log(`[DocumentCreation] Conditions not met for document generation`, {
+          recordId: record_id,
+          templateId: template_id,
+          module
+        });
+        
+        return res.json({
+          success: true,
+          skipped: true,
+          reason: "Document generation conditions not met",
+          message: "Document creation was skipped due to configured conditions",
+          recordId: record_id,
+          module,
+          templateId: template_id
+        });
+      }
+
       // Create PandaDoc document
       const createRequest = {
         name: `${record.name || 'Document'} - ${new Date().toLocaleDateString()}`,

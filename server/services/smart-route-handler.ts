@@ -205,6 +205,106 @@ export class SmartRouteHandler {
   }
 
   /**
+   * Evaluate document generation conditions
+   */
+  static async evaluateGenerationConditions(
+    record: any, 
+    template: DocumentTemplate, 
+    tenant: Tenant
+  ): Promise<boolean> {
+    try {
+      // If skipIfDocumentExists is enabled, check for existing documents
+      if (template.skipIfDocumentExists) {
+        const existingDocuments = await storage.getDocumentsByRecordId(record.id);
+        const hasExistingDoc = existingDocuments.some(doc => 
+          doc.sugarRecordId === record.id && doc.tenantId === tenant.id
+        );
+        if (hasExistingDoc) {
+          console.log(`[Conditions] Skipping document creation - document already exists for record ${record.id}`);
+          return false;
+        }
+      }
+
+      // If custom script is provided, evaluate it
+      if (template.customConditionsScript && template.customConditionsScript.trim()) {
+        try {
+          // Create a sandboxed evaluation context
+          const scriptFunction = new Function('record', 'tenant', 'template', template.customConditionsScript);
+          const result = scriptFunction(record, tenant, template);
+          console.log(`[Conditions] Custom script result:`, result);
+          return Boolean(result);
+        } catch (scriptError) {
+          console.error(`[Conditions] Custom script evaluation error:`, scriptError);
+          // Fall back to basic conditions if script fails
+        }
+      }
+
+      // Evaluate basic generation conditions
+      const conditions = template.generationConditions as any[] || [];
+      if (conditions.length === 0) {
+        return true; // No conditions means always generate
+      }
+
+      const requireAllConditions = template.requireAllConditions ?? true;
+      
+      for (const condition of conditions) {
+        const fieldValue = this.getNestedValue(record, condition.field);
+        const conditionMet = this.evaluateCondition(fieldValue, condition.operator, condition.value);
+        
+        console.log(`[Conditions] Evaluating: ${condition.field} ${condition.operator} ${condition.value} = ${conditionMet}`, {
+          fieldValue,
+          actualType: typeof fieldValue
+        });
+
+        if (requireAllConditions && !conditionMet) {
+          return false; // ALL required, one failed
+        } else if (!requireAllConditions && conditionMet) {
+          return true; // ANY required, one succeeded
+        }
+      }
+
+      // If we reach here:
+      // - requireAllConditions=true: all conditions passed
+      // - requireAllConditions=false: no conditions passed
+      return requireAllConditions;
+
+    } catch (error) {
+      console.error(`[Conditions] Error evaluating generation conditions:`, error);
+      return true; // Default to allowing generation on error
+    }
+  }
+
+  /**
+   * Evaluate a single condition
+   */
+  private static evaluateCondition(fieldValue: any, operator: string, expectedValue: string): boolean {
+    const strFieldValue = String(fieldValue || '').toLowerCase();
+    const strExpectedValue = String(expectedValue || '').toLowerCase();
+    const numFieldValue = parseFloat(String(fieldValue || '0'));
+    const numExpectedValue = parseFloat(expectedValue || '0');
+
+    switch (operator) {
+      case 'equals':
+        return strFieldValue === strExpectedValue;
+      case 'not_equals':
+        return strFieldValue !== strExpectedValue;
+      case 'greater_than':
+        return !isNaN(numFieldValue) && !isNaN(numExpectedValue) && numFieldValue > numExpectedValue;
+      case 'less_than':
+        return !isNaN(numFieldValue) && !isNaN(numExpectedValue) && numFieldValue < numExpectedValue;
+      case 'contains':
+        return strFieldValue.includes(strExpectedValue);
+      case 'not_empty':
+        return fieldValue !== null && fieldValue !== undefined && String(fieldValue).trim() !== '';
+      case 'empty':
+        return fieldValue === null || fieldValue === undefined || String(fieldValue).trim() === '';
+      default:
+        console.warn(`[Conditions] Unknown operator: ${operator}`);
+        return false;
+    }
+  }
+
+  /**
    * Check if payload matches additional criteria
    */
   private static matchesCriteria(payload: SugarWebHookPayload, criteria: any): boolean {
@@ -238,9 +338,9 @@ export class SmartRouteHandler {
   /**
    * Get nested value from object using dot notation
    */
-  private static getNestedValue(obj: any, path: string): any {
+  private static getNestedValue(obj: Record<string, any>, path: string): any {
     return path.split('.').reduce((current, key) => {
-      return current && current[key] !== undefined ? current[key] : undefined;
+      return current && typeof current === 'object' && current[key] !== undefined ? current[key] : undefined;
     }, obj);
   }
 
@@ -254,18 +354,18 @@ export class SmartRouteHandler {
     const sanitizeObj = (obj: any, path = ''): any => {
       if (!obj || typeof obj !== 'object') return obj;
       
-      const result = Array.isArray(obj) ? [] : {};
+      const result: Record<string, any> = Array.isArray(obj) ? [] : {};
       
       for (const [key, value] of Object.entries(obj)) {
         const fullPath = path ? `${path}.${key}` : key;
         const lowerKey = key.toLowerCase();
         
         if (sensitive.some(s => lowerKey.includes(s))) {
-          result[key] = '[REDACTED]';
+          (result as any)[key] = '[REDACTED]';
         } else if (typeof value === 'object' && value !== null) {
-          result[key] = sanitizeObj(value, fullPath);
+          (result as any)[key] = sanitizeObj(value, fullPath);
         } else {
-          result[key] = value;
+          (result as any)[key] = value;
         }
       }
       
