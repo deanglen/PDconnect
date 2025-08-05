@@ -266,12 +266,21 @@ export default function PDRequestsPage() {
       defaultRecipients: template.defaultRecipients,
       tokenMappings: template.tokenMappings,
       fieldMappings: template.fieldMappings,
+      generationConditions: template.generationConditions || [],
+      requireAllConditions: template.requireAllConditions ?? true,
+      customConditionsScript: template.customConditionsScript || "",
+      skipIfDocumentExists: template.skipIfDocumentExists ?? true,
       isActive: template.isActive,
       isDefault: template.isDefault
     });
     setEditingTemplate(template);
     setJsonConfig(JSON.stringify(template, null, 2));
     setShowCreateForm(true);
+    
+    // Debug: Log conditions to verify they're loaded
+    if (template.generationConditions && template.generationConditions.length > 0) {
+      console.log('Loaded conditions for editing:', template.generationConditions);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
