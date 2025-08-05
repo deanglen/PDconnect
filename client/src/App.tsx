@@ -16,7 +16,6 @@ import LiveTesting from "@/pages/live-testing";
 import Webhooks from "@/pages/webhooks";
 import Documents from "@/pages/documents";
 import UserManagement from "@/pages/user-management";
-import DocumentTest from "@/pages/document-test";
 import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
 
@@ -55,7 +54,6 @@ function Router() {
             <Route path="/documents" component={Documents} />
             <Route path="/users" component={UserManagement} />
             <Route path="/live-testing" component={LiveTesting} />
-            <Route path="/document-test" component={DocumentTest} />
             <Route component={NotFound} />
           </Switch>
         </div>

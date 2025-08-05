@@ -7,7 +7,6 @@ interface SidebarProps {
 const navigation = [
   { name: 'Dashboard', href: '/', icon: 'fas fa-tachometer-alt' },
   { name: 'Tenant Config', href: '/tenants', icon: 'fas fa-building' },
-  { name: 'Document Test', href: '/document-test', icon: 'fas fa-play-circle' },
   { name: 'Live Testing', href: '/live-testing', icon: 'fas fa-vial' },
   { name: 'Field Mappings', href: '/mappings', icon: 'fas fa-arrows-alt-h' },
   { name: 'Workflows', href: '/workflows', icon: 'fas fa-project-diagram' },
