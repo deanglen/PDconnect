@@ -62,7 +62,7 @@ export class SugarCRMService {
             scope: 'https://apis.sugarcrm.com/auth/crm',
           }
         },
-        // Method 2: Direct instance OAuth2 (on-premise style)
+        // Method 2: Direct instance OAuth2 (standard)
         {
           client: this.client,
           endpoint: '/oauth2/token',
@@ -72,19 +72,6 @@ export class SugarCRMService {
             password: this.tenant.sugarCrmPassword,
             client_id: 'sugar',
             client_secret: '',
-          }
-        },
-        // Method 3: With platform parameter
-        {
-          client: this.client,
-          endpoint: '/oauth2/token',
-          data: {
-            grant_type: 'password',
-            username: this.tenant.sugarCrmUsername,
-            password: this.tenant.sugarCrmPassword,
-            client_id: 'sugar',
-            client_secret: '',
-            platform: 'base',
           }
         }
       ];
@@ -133,7 +120,6 @@ export class SugarCRMService {
         refresh_token: this.refreshToken,
         client_id: 'sugar',
         client_secret: '',
-        platform: 'base',
       });
 
       this.accessToken = response.data.access_token;
