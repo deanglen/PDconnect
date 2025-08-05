@@ -80,13 +80,6 @@ export interface IStorage {
   createRouteTemplateRecord(record: InsertRouteTemplateRecord): Promise<RouteTemplateRecord>;
   updateRouteTemplateRecord(id: string, record: Partial<InsertRouteTemplateRecord>): Promise<RouteTemplateRecord>;
   deleteRouteTemplateRecord(id: string): Promise<void>;
-
-  // Route template record methods
-  getRouteTemplateRecords(tenantId?: string): Promise<RouteTemplateRecord[]>;
-  getRouteTemplateRecord(id: string): Promise<RouteTemplateRecord | undefined>;
-  createRouteTemplateRecord(route: InsertRouteTemplateRecord): Promise<RouteTemplateRecord>;
-  updateRouteTemplateRecord(id: string, route: Partial<InsertRouteTemplateRecord>): Promise<RouteTemplateRecord>;
-  deleteRouteTemplateRecord(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
