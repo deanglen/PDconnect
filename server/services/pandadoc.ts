@@ -70,6 +70,13 @@ export class PandaDocService {
   private client: AxiosInstance;
 
   constructor(private tenant: Tenant) {
+    console.log('[PandaDoc] Constructor received tenant:', {
+      id: tenant.id,
+      name: tenant.name,
+      hasApiKey: !!tenant.pandaDocApiKey,
+      apiKeyLength: tenant.pandaDocApiKey?.length || 0
+    });
+    
     // PandaDoc uses the same base URL for both sandbox and production
     // Sandbox is controlled by the API key itself
     const baseURL = 'https://api.pandadoc.com';
@@ -78,7 +85,7 @@ export class PandaDocService {
       baseURL,
       timeout: 30000,
       headers: {
-        'Authorization': `API-Key ${tenant.pandaDocApiKey}`,
+        'Authorization': `API-Key ${tenant.pandaDocApiKey || tenant.panda_doc_api_key}`,
         'Content-Type': 'application/json',
       },
     });

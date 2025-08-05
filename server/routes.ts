@@ -570,10 +570,19 @@ export async function handleDocumentCreation(req: Request, res: Response) {
         value: token.value
       }));
 
+      // Get the actual PandaDoc template ID from the database template record
+      const templateRecord = await storage.getDocumentTemplate(template_id);
+      if (!templateRecord) {
+        return res.status(404).json({
+          error: "Template not found",
+          message: `No template found with ID: ${template_id}`
+        });
+      }
+
       // Create PandaDoc document
       const createRequest = {
         name: `${record.name || 'Document'} - ${new Date().toLocaleDateString()}`,
-        template_uuid: template_id,
+        template_uuid: templateRecord.pandaDocTemplateId,
         recipients: [
           {
             email: record.email || 'recipient@example.com',
