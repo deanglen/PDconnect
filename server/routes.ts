@@ -10,6 +10,7 @@ import { WebhookVerifier } from "./utils/webhook-verifier";
 import { insertTenantSchema, insertFieldMappingSchema, insertWorkflowSchema, insertDocumentSchema, insertDocumentTemplateSchema, insertUserSchema, updateUserSchema } from "@shared/schema";
 import { createAuthMiddleware, getAuthStatus } from "./middleware/multi-auth";
 import authRoutes from "./routes/auth";
+import { requireAuth } from "./middleware/auth";
 import { z } from "zod";
 import { logger } from "./utils/logger";
 import { retryQueue, initializeRetryQueue } from "./utils/retry-queue";
@@ -442,8 +443,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add all the webhook and API routes
   addWebhookRoutes(app);
 
-  // Route template management endpoints
-  app.get("/api/route-templates", async (req: Request, res: Response) => {
+  // Route template management endpoints (require authentication)
+  app.get("/api/route-templates", requireAuth, async (req: Request, res: Response) => {
     try {
       const { tenantId } = req.query;
       const routes = await storage.getRouteTemplateRecords(tenantId as string);
@@ -453,7 +454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/route-templates", async (req: Request, res: Response) => {
+  app.post("/api/route-templates", requireAuth, async (req: Request, res: Response) => {
     try {
       const route = await storage.createRouteTemplateRecord(req.body);
       res.status(201).json(route);
@@ -462,7 +463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/route-templates/:id", async (req: Request, res: Response) => {
+  app.put("/api/route-templates/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const route = await storage.updateRouteTemplateRecord(id, req.body);
@@ -472,7 +473,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/route-templates/:id", async (req: Request, res: Response) => {
+  app.delete("/api/route-templates/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       await storage.deleteRouteTemplateRecord(id);
@@ -1465,8 +1466,23 @@ function addWebhookRoutes(app: Express) {
     }
   });
 
-  // Get specific document template
-  app.get("/api/document-templates/:id", async (req: Request, res: Response) => {
+  // Get document templates for a specific tenant (by tenant ID in path)
+  app.get("/api/document-templates/:tenantId", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { tenantId } = req.params;
+      const { module } = req.query;
+      
+      const templates = await storage.getDocumentTemplates(tenantId, module as string);
+      res.json(templates);
+    } catch (error: any) {
+      const requestId = (req as any).requestId;
+      logger.error('Failed to fetch document templates for tenant', { requestId }, error);
+      res.status(500).json({ message: "Failed to fetch document templates", error: error.message });
+    }
+  });
+
+  // Get specific document template by ID
+  app.get("/api/document-template/:id", async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const template = await storage.getDocumentTemplate(id);
