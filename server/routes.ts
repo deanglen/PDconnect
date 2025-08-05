@@ -914,6 +914,43 @@ function addWebhookRoutes(app: Express) {
     }
   });
 
+  // SugarCRM update endpoint
+  app.put("/api/sugarcrm/update", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { tenantId, module, recordId, data } = req.body;
+
+      if (!tenantId || !module || !recordId || !data) {
+        return res.status(400).json({ 
+          message: "tenantId, module, recordId, and data are required" 
+        });
+      }
+
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      const sugarService = new SugarCRMService(tenant);
+      const updatedRecord = await sugarService.updateRecord(module, recordId, data);
+
+      res.json({
+        message: "Record updated successfully",
+        record: updatedRecord
+      });
+
+    } catch (error: any) {
+      logger.error('SugarCRM update error', {
+        tenantId: req.body.tenantId,
+        requestId: (req as any).requestId
+      }, error);
+      
+      res.status(500).json({ 
+        message: "Failed to update SugarCRM record",
+        error: error.message 
+      });
+    }
+  });
+
   // Tenant management endpoints
   // Admin dashboard route
   app.get("/admin", (req: Request, res: Response) => {
