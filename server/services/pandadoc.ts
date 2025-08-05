@@ -124,7 +124,24 @@ export class PandaDocService {
       const response = await this.client.post('/public/v1/documents', request);
       return response.data;
     } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || error.message;
+      console.error('[PandaDoc] Document creation error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+        request: {
+          name: request.name,
+          template_uuid: request.template_uuid,
+          recipients: request.recipients?.length,
+          tokens: Object.keys(request.tokens || {}).length,
+          fields: Object.keys(request.fields || {}).length
+        }
+      });
+      
+      const errorMessage = error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          JSON.stringify(error.response?.data) || 
+                          error.message;
       throw new Error(`Failed to create PandaDoc document: ${errorMessage}`);
     }
   }
