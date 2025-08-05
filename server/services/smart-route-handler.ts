@@ -150,6 +150,24 @@ export class SmartRouteHandler {
       }
     }
 
+    // Check if there's a nested data object (SugarCRM Web Logic Hook format)
+    if (payload.data && typeof payload.data === 'object') {
+      for (const field of possibleFields) {
+        if (payload.data[field] && typeof payload.data[field] === 'string') {
+          return payload.data[field];
+        }
+      }
+    }
+
+    // Check if there's a nested data object (SugarCRM Web Logic Hook format)
+    if (payload.data && typeof payload.data === 'object') {
+      for (const field of possibleFields) {
+        if (payload.data[field] && typeof payload.data[field] === 'string') {
+          return payload.data[field];
+        }
+      }
+    }
+
     // Check if there's a nested bean object
     if (payload.bean && typeof payload.bean === 'object') {
       for (const field of possibleFields) {
