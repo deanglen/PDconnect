@@ -50,19 +50,7 @@ export class SugarCRMService {
       
       let response;
       const authMethods = [
-        // Method 1: SugarCRM Cloud Identity Service
-        {
-          client: this.identityClient,
-          endpoint: '/oauth2/token',
-          data: {
-            grant_type: 'password',
-            username: this.tenant.sugarCrmUsername,
-            password: this.tenant.sugarCrmPassword,
-            client_id: 'sugar',
-            scope: 'https://apis.sugarcrm.com/auth/crm',
-          }
-        },
-        // Method 2: Direct instance OAuth2 (standard)
+        // Method 1: Basic OAuth2 without platform
         {
           client: this.client,
           endpoint: '/oauth2/token',
@@ -72,6 +60,18 @@ export class SugarCRMService {
             password: this.tenant.sugarCrmPassword,
             client_id: 'sugar',
             client_secret: '',
+          }
+        },
+        // Method 2: SugarCRM Cloud Identity Service
+        {
+          client: this.identityClient,
+          endpoint: '/oauth2/token',
+          data: {
+            grant_type: 'password',
+            username: this.tenant.sugarCrmUsername,
+            password: this.tenant.sugarCrmPassword,
+            client_id: 'sugar',
+            scope: 'https://apis.sugarcrm.com/auth/crm',
           }
         }
       ];
