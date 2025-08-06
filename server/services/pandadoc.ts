@@ -85,7 +85,7 @@ export class PandaDocService {
       baseURL,
       timeout: 30000,
       headers: {
-        'Authorization': `API-Key ${tenant.pandaDocApiKey || tenant.panda_doc_api_key}`,
+        'Authorization': `API-Key ${tenant.pandaDocApiKey}`,
         'Content-Type': 'application/json',
       },
     });
@@ -335,5 +335,41 @@ export class PandaDocService {
 
   generatePublicLink(documentId: string): string {
     return `https://app.pandadoc.com/a/#/documents/${documentId}`;
+  }
+
+  // NEW: Method to extract field values from completed PandaDoc document
+  async getDocumentFieldValues(documentId: string): Promise<Record<string, any>> {
+    try {
+      const response = await this.client.get(`/public/v1/documents/${documentId}/details`);
+      const details = response.data;
+      
+      const fieldValues: Record<string, any> = {};
+      
+      // Extract values from document fields
+      if (details.fields && Array.isArray(details.fields)) {
+        for (const field of details.fields) {
+          if (field.name && field.value !== undefined && field.value !== null) {
+            fieldValues[field.name] = field.value;
+          }
+        }
+      }
+
+      // Extract values from tokens if present
+      if (details.tokens && Array.isArray(details.tokens)) {
+        for (const token of details.tokens) {
+          if (token.name && token.value !== undefined && token.value !== null) {
+            // Remove double curly braces if present
+            const tokenName = token.name.replace(/^\{\{|\}\}$/g, '');
+            fieldValues[tokenName] = token.value;
+          }
+        }
+      }
+
+      console.log(`[PandaDoc] Extracted ${Object.keys(fieldValues).length} field values from document ${documentId}`);
+      return fieldValues;
+    } catch (error: any) {
+      console.error(`[PandaDoc] Failed to extract field values from document ${documentId}:`, error.message);
+      throw new Error(`Failed to extract field values from PandaDoc document: ${error.response?.data?.detail || error.message}`);
+    }
   }
 }

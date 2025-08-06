@@ -288,6 +288,9 @@ export class WebhookProcessor {
       case 'send_notification':
         await this.sendNotification(action, payload);
         break;
+      case 'sync_fields':
+        await this.syncFieldsToSugarCRM(action, payload, tenant);
+        break;
       default:
         console.warn(`Unknown action type: ${action.type}`);
     }
@@ -556,5 +559,80 @@ export class WebhookProcessor {
     });
 
     return stats;
+  }
+
+  /**
+   * NEW: Sync PandaDoc field values back to SugarCRM using field mappings
+   */
+  private static async syncFieldsToSugarCRM(action: any, payload: any, tenant: any): Promise<void> {
+    const { SugarCRMService } = await import('./sugarcrm');
+    const { PandaDocService } = await import('./pandadoc');
+    
+    const sugarService = new SugarCRMService(tenant);
+    const pandaService = new PandaDocService(tenant);
+
+    // Get document ID and metadata - use real_document_id if available (for test cases)
+    const documentId = payload.data?.metadata?.real_document_id || payload.data?.id;
+    const recordId = payload.data?.metadata?.sugar_record_id;
+    const recordModule = payload.data?.metadata?.sugar_module || 'Opportunities';
+
+    if (!documentId) {
+      throw new Error('Document ID not found in webhook payload');
+    }
+
+    if (!recordId) {
+      throw new Error('SugarCRM record ID not found in webhook metadata');
+    }
+
+    console.log(`[WebhookProcessor] Starting field sync for document ${documentId} to ${recordModule} record ${recordId}`);
+
+    try {
+      // Step 1: Extract field values from PandaDoc document
+      const pandaDocFieldValues = await pandaService.getDocumentFieldValues(documentId);
+      console.log(`[WebhookProcessor] Extracted PandaDoc field values:`, Object.keys(pandaDocFieldValues));
+
+      // Step 2: Get field mappings for this tenant and module
+      const fieldMappings = await storage.getFieldMappings(tenant.id, recordModule);
+      console.log(`[WebhookProcessor] Found ${fieldMappings.length} field mappings for ${recordModule}`);
+
+      if (fieldMappings.length === 0) {
+        console.log(`[WebhookProcessor] No field mappings found for tenant ${tenant.id} and module ${recordModule}`);
+        return;
+      }
+
+      // Step 3: Map PandaDoc values to SugarCRM fields
+      const sugarUpdateData: Record<string, any> = {};
+      let mappedFieldsCount = 0;
+
+      for (const mapping of fieldMappings) {
+        if (!mapping.isActive) continue;
+
+        // Clean the PandaDoc token name (remove {{ }} if present)
+        const cleanTokenName = mapping.pandaDocToken.replace(/^\{\{|\}\}$/g, '');
+        
+        // Look for the value in PandaDoc field values
+        if (pandaDocFieldValues.hasOwnProperty(cleanTokenName)) {
+          const value = pandaDocFieldValues[cleanTokenName];
+          if (value !== undefined && value !== null && value !== '') {
+            sugarUpdateData[mapping.sugarField] = value;
+            mappedFieldsCount++;
+            console.log(`[WebhookProcessor] Mapped ${cleanTokenName} -> ${mapping.sugarField}: ${value}`);
+          }
+        }
+      }
+
+      // Step 4: Update SugarCRM record if we have mapped fields
+      if (mappedFieldsCount > 0) {
+        console.log(`[WebhookProcessor] Updating SugarCRM ${recordModule} ${recordId} with ${mappedFieldsCount} fields`);
+        await sugarService.updateRecord(recordModule, recordId, sugarUpdateData);
+        console.log(`Successfully synced ${mappedFieldsCount} fields from PandaDoc to SugarCRM ${recordModule} ${recordId}`);
+      } else {
+        console.log(`[WebhookProcessor] No field values to sync - all mappings were empty or undefined`);
+      }
+
+    } catch (error: any) {
+      console.error(`[WebhookProcessor] Error syncing fields from PandaDoc to SugarCRM:`, error);
+      throw new Error(`Failed to sync fields: ${error.message}`);
+    }
   }
 }
