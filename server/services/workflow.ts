@@ -10,13 +10,14 @@ export interface WorkflowCondition {
 }
 
 export interface WorkflowAction {
-  type: 'update_sugarcrm' | 'attach_document' | 'send_notification' | 'log_activity' | 'create_note';
+  type: 'update_sugarcrm' | 'attach_document' | 'send_notification' | 'log_activity' | 'create_note' | 'sync_fields';
   module?: string;
   field?: string;
   value?: any;
   recipients?: string[];
   subject?: string;
   message?: string;
+  description?: string;
 }
 
 export interface WorkflowConfig {
@@ -38,7 +39,7 @@ export class WorkflowEngine {
     const startTime = Date.now();
     let actionsTriggered = 0;
     let errorMessage: string | undefined;
-    let status: 'processed' | 'failed' | 'pending' = 'pending';
+    let status: 'success' | 'failed' | 'pending' = 'pending';
 
     // Create initial webhook log
     const webhookLog = await storage.createWebhookLog({
@@ -49,6 +50,8 @@ export class WorkflowEngine {
       payload,
       status: 'pending',
       actionsTriggered: 0,
+      maxRetries: 3,
+      retryCount: 0,
     });
 
     try {
@@ -85,7 +88,7 @@ export class WorkflowEngine {
         }
       }
 
-      status = 'processed';
+      status = 'success';
     } catch (error) {
       console.error('Error processing webhook:', error);
       errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -140,6 +143,9 @@ export class WorkflowEngine {
         break;
       case 'create_note':
         await this.createSugarCRMNote(action, payload);
+        break;
+      case 'sync_fields':
+        await this.syncFieldsToSugarCRM(action, payload);
         break;
       case 'log_activity':
         await this.logActivity(action, payload);
@@ -199,7 +205,74 @@ export class WorkflowEngine {
     const subject = this.interpolateValue(action.subject, payload);
     const description = action.message ? this.interpolateValue(action.message, payload) : undefined;
 
-    await this.sugarCrmService.createNote(action.module, document.sugarRecordId, subject, description);
+    await this.sugarCrmService.createNote(action.module, document.sugarRecordId, subject);
+  }
+
+  private async syncFieldsToSugarCRM(action: WorkflowAction, payload: any): Promise<void> {
+    console.log('[FieldSync] Starting field synchronization process');
+    
+    // Extract document metadata to determine SugarCRM record
+    const recordId = payload.data.metadata?.sugar_record_id;
+    const sugarModule = payload.data.metadata?.sugar_module || 'Opportunities';
+    
+    if (!recordId) {
+      throw new Error('No SugarCRM record ID found in document metadata');
+    }
+
+    console.log(`[FieldSync] Syncing to ${sugarModule} record: ${recordId}`);
+
+    // Get field mappings for this tenant
+    const fieldMappings = await storage.getFieldMappings(this.tenant.id);
+    console.log(`[FieldSync] Found ${fieldMappings.length} field mappings`);
+
+    if (fieldMappings.length === 0) {
+      console.log('[FieldSync] No field mappings configured - skipping sync');
+      return;
+    }
+
+    // Extract field values from PandaDoc webhook
+    const documentFields = payload.data.fields || [];
+    console.log(`[FieldSync] PandaDoc document has ${documentFields.length} fields`);
+
+    // Create update data object
+    const updateData: Record<string, any> = {};
+
+    for (const mapping of fieldMappings) {
+      // Skip inactive mappings
+      if (!mapping.isActive) {
+        continue;
+      }
+
+      // Clean the PandaDoc token to match field names
+      const cleanToken = mapping.pandaDocToken
+        .replace(/[\[\]]/g, '') // Remove brackets [field] -> field
+        .replace(/[\{\}]/g, '') // Remove braces {{field}} -> field
+        .toLowerCase();
+
+      console.log(`[FieldSync] Looking for PandaDoc field "${cleanToken}" to map to Sugar field "${mapping.sugarField}"`);
+
+      // Find matching field in PandaDoc document
+      const matchingField = documentFields.find((field: any) => {
+        const fieldName = (field.merge_field || field.name || '').toLowerCase();
+        return fieldName === cleanToken || fieldName.includes(cleanToken);
+      });
+
+      if (matchingField && matchingField.value) {
+        updateData[mapping.sugarField] = matchingField.value;
+        console.log(`[FieldSync] Mapped "${cleanToken}" (${matchingField.value}) -> "${mapping.sugarField}"`);
+      } else {
+        console.log(`[FieldSync] No matching field found for "${cleanToken}"`);
+      }
+    }
+
+    // Update SugarCRM record if we have data to update
+    if (Object.keys(updateData).length > 0) {
+      console.log(`[FieldSync] Updating SugarCRM with data:`, updateData);
+      await this.sugarCrmService.updateRecord(sugarModule, recordId, updateData);
+      console.log('[FieldSync] Successfully updated SugarCRM record');
+    } else {
+      console.log('[FieldSync] No field values to sync');
+    }
   }
 
   private async logActivity(action: WorkflowAction, payload: any): Promise<void> {

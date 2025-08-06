@@ -587,11 +587,22 @@ export class WebhookProcessor {
     console.log(`[WebhookProcessor] Starting field sync for document ${documentId} to ${recordModule} record ${recordId}`);
 
     try {
-      // Step 1: Extract field values from PandaDoc document
-      const pandaDocFieldValues = await pandaService.getDocumentFieldValues(documentId);
-      console.log(`[WebhookProcessor] Extracted PandaDoc field values:`, Object.keys(pandaDocFieldValues));
+      // Step 1: Extract field values from webhook payload (no API call needed)
+      const webhookFields = payload.data?.fields || [];
+      console.log(`[WebhookProcessor] Found ${webhookFields.length} fields in webhook payload`);
+      
+      // Convert webhook fields to lookup object for easier mapping
+      const fieldValuesLookup: Record<string, any> = {};
+      webhookFields.forEach((field: any) => {
+        const fieldName = field.merge_field || field.name || '';
+        if (fieldName && field.value !== undefined) {
+          fieldValuesLookup[fieldName.toLowerCase()] = field.value;
+        }
+      });
+      
+      console.log(`[WebhookProcessor] Available field names:`, Object.keys(fieldValuesLookup));
 
-      // Step 2: Get field mappings for this tenant and module
+      // Step 2: Get field mappings for this tenant and module  
       const fieldMappings = await storage.getFieldMappings(tenant.id, recordModule);
       console.log(`[WebhookProcessor] Found ${fieldMappings.length} field mappings for ${recordModule}`);
 
@@ -607,17 +618,25 @@ export class WebhookProcessor {
       for (const mapping of fieldMappings) {
         if (!mapping.isActive) continue;
 
-        // Clean the PandaDoc token name (remove {{ }} if present)
-        const cleanTokenName = mapping.pandaDocToken.replace(/^\{\{|\}\}$/g, '');
+        // Clean the PandaDoc token name (remove [[ ]] and {{ }} brackets)
+        const cleanTokenName = mapping.pandaDocToken
+          .replace(/^\[\[|\]\]$/g, '') // Remove [[ ]]
+          .replace(/^\[|\]$/g, '')     // Remove [ ]
+          .replace(/^\{\{|\}\}$/g, '') // Remove {{ }}
+          .toLowerCase();
         
-        // Look for the value in PandaDoc field values
-        if (pandaDocFieldValues.hasOwnProperty(cleanTokenName)) {
-          const value = pandaDocFieldValues[cleanTokenName];
+        console.log(`[WebhookProcessor] Looking for field "${cleanTokenName}" from token "${mapping.pandaDocToken}"`);
+        
+        // Look for the value in webhook field values
+        if (fieldValuesLookup.hasOwnProperty(cleanTokenName)) {
+          const value = fieldValuesLookup[cleanTokenName];
           if (value !== undefined && value !== null && value !== '') {
             sugarUpdateData[mapping.sugarField] = value;
             mappedFieldsCount++;
             console.log(`[WebhookProcessor] Mapped ${cleanTokenName} -> ${mapping.sugarField}: ${value}`);
           }
+        } else {
+          console.log(`[WebhookProcessor] No matching field found for "${cleanTokenName}" in webhook payload`);
         }
       }
 
