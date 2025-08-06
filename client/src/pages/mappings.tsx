@@ -319,14 +319,22 @@ export default function Mappings() {
                         name="pandaDocToken"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>PandaDoc Token</FormLabel>
+                            <FormLabel>PandaDoc Merge Field</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="{{company_name}}" />
+                              <Input {...field} placeholder="[Description]" />
                             </FormControl>
                             <FormMessage />
-                            <p className="text-xs text-gray-500">
-                              Use double curly braces format: {`{{token_name}}`}
-                            </p>
+                            <div className="space-y-1">
+                              <p className="text-xs text-blue-600 font-medium">
+                                💡 Copy directly from your PandaDoc template
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Supported formats: [field_name] or {`{{field_name}}`}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                Example: [Description], [Amount], [Company Name]
+                              </p>
+                            </div>
                           </FormItem>
                         )}
                       />
@@ -361,6 +369,12 @@ export default function Mappings() {
                 <i className="fas fa-arrows-alt-h text-4xl text-gray-300 mb-4"></i>
                 <p className="text-gray-500">Select a tenant to view field mappings</p>
                 <p className="text-sm text-gray-400">Choose a tenant from the dropdown above</p>
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                  <p className="text-sm text-blue-700 font-medium mb-2">✨ New: PandaDoc Native Format Support</p>
+                  <p className="text-xs text-blue-600">
+                    You can now copy merge fields directly from your PandaDoc templates using the [field] format!
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

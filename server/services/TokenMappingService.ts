@@ -16,6 +16,25 @@ export interface MappingPreview {
   successfulMappings: number;
 }
 
+/**
+ * Normalize PandaDoc token format
+ * Converts between [field] and {{field}} formats for consistency
+ */
+export function normalizePandaDocToken(token: string): string {
+  // Remove any existing brackets first
+  const cleanToken = token.replace(/[{}\[\]]/g, '').trim();
+  
+  // Return in PandaDoc native format for display
+  return `[${cleanToken}]`;
+}
+
+/**
+ * Extract clean token name from any format
+ */
+export function extractTokenName(token: string): string {
+  return token.replace(/[{}\[\]]/g, '').trim();
+}
+
 export class TokenMappingService {
   
   /**
@@ -93,10 +112,12 @@ export class TokenMappingService {
   }
 
   /**
-   * Clean token name by removing {{}} brackets and trimming
+   * Clean token name by removing {{}} or [] brackets and trimming
+   * Supports both PandaDoc native [field] syntax and legacy {{field}} syntax
    */
   private static cleanTokenName(tokenName: string): string {
-    return tokenName.replace(/[{}]/g, '').trim();
+    // Remove both {{}} and [] brackets to support PandaDoc native format
+    return tokenName.replace(/[{}\[\]]/g, '').trim();
   }
 
   /**
