@@ -517,6 +517,63 @@ export class SugarCRMService {
     }
   }
 
+  // File attachment method for uploading PDFs to SugarCRM
+  async createFileAttachment(params: {
+    fileName: string;
+    fileContent: Buffer;
+    parentType: string;
+    parentId: string;
+    description?: string;
+  }): Promise<any> {
+    try {
+      await this.ensureAuthenticated();
+      
+      // Convert buffer to base64
+      const base64Content = params.fileContent.toString('base64');
+      
+      // Create Note with file attachment
+      const noteData = {
+        name: params.fileName,
+        filename: params.fileName,
+        file_mime_type: 'application/pdf',
+        file: base64Content,
+        parent_type: params.parentType,
+        parent_id: params.parentId,
+        description: params.description || `Document from PandaDoc: ${params.fileName}`,
+      };
+      
+      console.log(`[SugarCRM] Creating file attachment: ${params.fileName} for ${params.parentType} ${params.parentId}`);
+      
+      const response = await this.client.post('/Notes', noteData);
+      console.log(`[SugarCRM] Successfully created file attachment with ID: ${response.data.id}`);
+      
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        await this.refreshAccessToken();
+        // Retry the request
+        const base64Content = params.fileContent.toString('base64');
+        const noteData = {
+          name: params.fileName,
+          filename: params.fileName,
+          file_mime_type: 'application/pdf',
+          file: base64Content,
+          parent_type: params.parentType,
+          parent_id: params.parentId,
+          description: params.description || `Document from PandaDoc: ${params.fileName}`,
+        };
+        
+        const response = await this.client.post('/Notes', noteData);
+        console.log(`[SugarCRM] Successfully created file attachment with ID: ${response.data.id}`);
+        return response.data;
+      }
+      
+      const errorMessage = error.response?.data?.error_message || error.message;
+      console.error(`[SugarCRM] Failed to create file attachment: ${errorMessage}`);
+      throw new Error(`Failed to create file attachment: ${errorMessage}`);
+    }
+  }
+
   private inferFieldType(value: any): string {
     if (value === null || value === undefined) return 'varchar';
     if (typeof value === 'number') return Number.isInteger(value) ? 'int' : 'decimal';

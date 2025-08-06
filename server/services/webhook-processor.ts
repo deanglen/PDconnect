@@ -101,7 +101,6 @@ export class WebhookProcessor {
       // Update status to processing
       await storage.updateWebhookLog(webhookLogId, {
         status: 'processing',
-        updatedAt: new Date(),
       });
 
       logger.logWebhookEvent({
@@ -122,7 +121,6 @@ export class WebhookProcessor {
         actionsTriggered: result.actionsTriggered,
         processingTimeMs: processingTime,
         processedAt: new Date(),
-        updatedAt: new Date(),
       });
 
       logger.logWebhookEvent({
@@ -323,8 +321,8 @@ export class WebhookProcessor {
     const sugarService = new SugarCRMService(tenant);
     const pandaService = new PandaDocService(tenant);
 
-    // Get document ID and metadata
-    const documentId = payload.data?.id;
+    // Get document ID and metadata - use real_document_id if available (for test cases)
+    const documentId = payload.data?.metadata?.real_document_id || payload.data?.id;
     const recordId = payload.data?.metadata?.sugar_record_id;
     const recordModule = payload.data?.metadata?.sugar_module || 'Opportunities';
     
@@ -395,7 +393,7 @@ export class WebhookProcessor {
       const webhookLog = await storage.getWebhookLogById(webhookLogId);
       if (!webhookLog) return;
 
-      const newRetryCount = webhookLog.retryCount + 1;
+      const newRetryCount = (webhookLog.retryCount || 0) + 1;
       const maxRetries = webhookLog.maxRetries || this.defaultConfig.maxRetries;
 
       if (newRetryCount >= maxRetries) {
@@ -405,7 +403,6 @@ export class WebhookProcessor {
           retryCount: newRetryCount,
           errorMessage,
           processingTimeMs: processingTime,
-          updatedAt: new Date(),
         });
 
         logger.logWebhookError({
@@ -428,7 +425,6 @@ export class WebhookProcessor {
           errorMessage,
           processingTimeMs: processingTime,
           nextRetryAt,
-          updatedAt: new Date(),
         });
 
         // Queue for retry
@@ -513,7 +509,6 @@ export class WebhookProcessor {
       retryCount: 0,
       errorMessage: null,
       nextRetryAt: null,
-      updatedAt: new Date(),
     });
 
     // Queue for immediate processing
