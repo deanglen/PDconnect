@@ -62,6 +62,7 @@ export class WebhookProcessor {
       });
 
       // Queue for immediate processing
+      console.log(`[WebhookProcessor] Queueing webhook ${webhookLog.id} for processing`);
       await this.queueForProcessing(webhookLog.id, 0);
 
       return webhookLog;
@@ -82,6 +83,7 @@ export class WebhookProcessor {
    * Process a webhook log entry
    */
   static async processWebhook(webhookLogId: string): Promise<void> {
+    console.log(`[WebhookProcessor] Starting to process webhook ${webhookLogId}`);
     const startTime = Date.now();
     
     try {
@@ -165,21 +167,43 @@ export class WebhookProcessor {
       return { actionsTriggered: 0 };
     }
 
-    // Initialize workflow engine
-    const workflowEngine = new WorkflowEngine(tenant);
     let totalActionsTriggered = 0;
 
-    // Process each workflow
+    // Process each workflow manually since processWebhook creates its own log
     for (const workflow of workflows) {
       try {
-        const result = await workflowEngine.executeWorkflow(workflow, webhookLog.payload);
-        totalActionsTriggered += result.actionsExecuted;
+        // Handle IF/THEN/ELSE structure or simple actions
+        const rules = workflow.ifThenElseRules as any;
+        let actionsExecuted = 0;
+        
+        if (rules && rules.if) {
+          const conditionsMet = this.evaluateIfConditions(rules.if, webhookLog.payload);
+          
+          if (conditionsMet && rules.then && Array.isArray(rules.then)) {
+            for (const action of rules.then) {
+              await this.executeAction(action, webhookLog.payload, tenant);
+              actionsExecuted++;
+            }
+          } else if (!conditionsMet && rules.else && Array.isArray(rules.else)) {
+            for (const action of rules.else) {
+              await this.executeAction(action, webhookLog.payload, tenant);
+              actionsExecuted++;
+            }
+          }
+        } else if (workflow.actions && Array.isArray(workflow.actions)) {
+          for (const action of workflow.actions) {
+            await this.executeAction(action, webhookLog.payload, tenant);
+            actionsExecuted++;
+          }
+        }
+        
+        totalActionsTriggered += actionsExecuted;
 
         logger.logWorkflowExecution({
           workflowId: workflow.id,
           workflowName: workflow.name,
           webhookId: webhookLog.id,
-          actionsExecuted: result.actionsExecuted,
+          actionsExecuted: actionsExecuted,
           status: 'success',
           timestamp: new Date().toISOString(),
         });
@@ -197,6 +221,163 @@ export class WebhookProcessor {
     }
 
     return { actionsTriggered: totalActionsTriggered };
+  }
+
+  /**
+   * Evaluate IF conditions for workflow logic
+   */
+  private static evaluateIfConditions(conditions: any[], payload: any): boolean {
+    if (!conditions || conditions.length === 0) {
+      return true;
+    }
+
+    for (const condition of conditions) {
+      const fieldValue = this.getNestedValue(payload, condition.field);
+      const compareValue = condition.value;
+      
+      let conditionMet = false;
+      
+      switch (condition.operator) {
+        case 'equals':
+          conditionMet = String(fieldValue) === String(compareValue);
+          break;
+        case 'not_equals':
+          conditionMet = String(fieldValue) !== String(compareValue);
+          break;
+        case 'contains':
+          conditionMet = String(fieldValue).toLowerCase().includes(String(compareValue).toLowerCase());
+          break;
+        case 'not_contains':
+          conditionMet = !String(fieldValue).toLowerCase().includes(String(compareValue).toLowerCase());
+          break;
+        case 'greater_than':
+          conditionMet = Number(fieldValue) > Number(compareValue);
+          break;
+        case 'less_than':
+          conditionMet = Number(fieldValue) < Number(compareValue);
+          break;
+        default:
+          console.warn(`Unknown operator: ${condition.operator}`);
+          conditionMet = false;
+      }
+      
+      // For now, use AND logic (all conditions must be met)
+      if (!conditionMet) {
+        return false;
+      }
+    }
+    
+    return true;
+  }
+
+  /**
+   * Execute a workflow action
+   */
+  private static async executeAction(action: any, payload: any, tenant: any): Promise<void> {
+    switch (action.type) {
+      case 'update_record':
+        await this.updateSugarCRMRecord(action, payload, tenant);
+        break;
+      case 'attach_file':
+        await this.attachFileToSugarCRM(action, payload, tenant);
+        break;
+      case 'create_note':
+        await this.createSugarCRMNote(action, payload, tenant);
+        break;
+      case 'log_activity':
+        await this.logActivity(action, payload);
+        break;
+      case 'send_notification':
+        await this.sendNotification(action, payload);
+        break;
+      default:
+        console.warn(`Unknown action type: ${action.type}`);
+    }
+  }
+
+  private static async updateSugarCRMRecord(action: any, payload: any, tenant: any): Promise<void> {
+    const { SugarCRMService } = await import('./sugarcrm');
+    const sugarService = new SugarCRMService(tenant);
+    
+    if (!action.module || !action.field) {
+      throw new Error('Module and field are required for update_record action');
+    }
+
+    // Get record ID from metadata
+    const recordId = payload.data?.metadata?.sugar_record_id;
+    if (!recordId) {
+      throw new Error('No related SugarCRM record found for document');
+    }
+
+    const updateData = {
+      [action.field]: this.interpolateValue(action.value, payload),
+    };
+
+    await sugarService.updateRecord(action.module, recordId, updateData);
+  }
+
+  private static async attachFileToSugarCRM(action: any, payload: any, tenant: any): Promise<void> {
+    const { SugarCRMService } = await import('./sugarcrm');
+    const { PandaDocService } = await import('./pandadoc');
+    
+    const sugarService = new SugarCRMService(tenant);
+    const pandaService = new PandaDocService(tenant);
+
+    // Get document ID and metadata
+    const documentId = payload.data?.id;
+    const recordId = payload.data?.metadata?.sugar_record_id;
+    const recordModule = payload.data?.metadata?.sugar_module || 'Opportunities';
+    
+    if (!documentId || !recordId) {
+      throw new Error('Document ID and SugarCRM record ID are required for file attachment');
+    }
+
+    try {
+      // Download PDF from PandaDoc
+      const pdfBuffer = await pandaService.downloadDocument(documentId);
+      const fileName = `${payload.data?.name || 'Document'}.pdf`;
+
+      // Upload to SugarCRM Notes module
+      await sugarService.createFileAttachment({
+        fileName,
+        fileContent: pdfBuffer,
+        parentType: recordModule,
+        parentId: recordId,
+        description: `Document from PandaDoc: ${payload.data?.name || 'Untitled'}`
+      });
+
+      console.log(`Successfully attached file ${fileName} to ${recordModule} ${recordId}`);
+    } catch (error) {
+      console.error('Error attaching file to SugarCRM:', error);
+      throw error;
+    }
+  }
+
+  private static async createSugarCRMNote(action: any, payload: any, tenant: any): Promise<void> {
+    console.log('Create note action not fully implemented');
+  }
+
+  private static async logActivity(action: any, payload: any): Promise<void> {
+    console.log('Log activity:', action.subject, payload);
+  }
+
+  private static async sendNotification(action: any, payload: any): Promise<void> {
+    console.log('Send notification:', action.recipients, action.subject);
+  }
+
+  private static getNestedValue(obj: any, path: string): any {
+    return path.split('.').reduce((current, key) => current?.[key], obj);
+  }
+
+  private static interpolateValue(template: string, payload: any): string {
+    if (typeof template !== 'string') {
+      return String(template);
+    }
+
+    return template.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+      const value = this.getNestedValue(payload, key.trim());
+      return value !== undefined ? String(value) : match;
+    });
   }
 
   /**
@@ -305,7 +486,9 @@ export class WebhookProcessor {
       }, delayMs);
     } else {
       // Process immediately (in next tick to avoid blocking)
+      console.log(`[WebhookProcessor] Scheduling immediate processing for webhook ${webhookLogId}`);
       setImmediate(async () => {
+        console.log(`[WebhookProcessor] setImmediate callback executing for webhook ${webhookLogId}`);
         await this.processWebhook(webhookLogId);
       });
     }
