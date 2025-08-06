@@ -340,7 +340,7 @@ export default function Mappings() {
                           <FormItem>
                             <FormLabel>PandaDoc Merge Field</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="[Description]" />
+                              <Input {...field} placeholder="[FieldName]" />
                             </FormControl>
                             <FormMessage />
                             <div className="space-y-1">
