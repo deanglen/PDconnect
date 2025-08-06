@@ -35,13 +35,16 @@ export class WebhookProcessor {
     const processingConfig = { ...this.defaultConfig, ...config };
     
     try {
+      // Handle both array format and single object format for payload
+      const webhookData = Array.isArray(payload) ? payload[0] : payload;
+      
       // Create webhook log entry with pending status
       const webhookLogData: InsertWebhookLog = {
         eventId: eventId || `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         tenantId,
-        eventType: payload.event_type || 'unknown',
-        documentId: payload.data?.id || payload.document?.id,
-        documentName: payload.data?.name || payload.document?.name,
+        eventType: webhookData.event_type || webhookData.event || 'unknown',
+        documentId: webhookData.data?.id || webhookData.document?.id,
+        documentName: webhookData.data?.name || webhookData.document?.name,
         payload: payload,
         status: 'pending',
         maxRetries: processingConfig.maxRetries,
@@ -63,9 +66,10 @@ export class WebhookProcessor {
 
       return webhookLog;
     } catch (error) {
+      const webhookData = Array.isArray(payload) ? payload[0] : payload;
       logger.logWebhookError({
         tenantId,
-        eventType: payload.event_type || 'unknown',
+        eventType: webhookData.event_type || webhookData.event || 'unknown',
         error: error instanceof Error ? error.message : 'Unknown error',
         stage: 'persistence',
         timestamp: new Date().toISOString(),
