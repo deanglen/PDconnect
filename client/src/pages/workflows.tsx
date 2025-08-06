@@ -1511,53 +1511,7 @@ export default function Workflows() {
     }
   };
 
-  const sampleWorkflows = [
-    {
-      id: '1',
-      name: 'Document Signed Workflow',
-      description: 'Triggered when document.signed event occurs',
-      triggerEvent: 'document_signed',
-      isActive: true,
-      configMode: 'point_click',
-      ifThenElseRules: {
-        if: [{ field: 'document.status', operator: 'equals', value: 'completed' }],
-        then: [
-          { type: 'update_sugarcrm', module: 'Opportunities', field: 'sales_stage', value: 'Closed Won' },
-          { type: 'attach_document', module: 'Opportunities', field: 'documents' }
-        ],
-        else: [
-          { type: 'log_activity', module: 'Opportunities', subject: 'Document signature incomplete' }
-        ]
-      },
-      actions: [
-        { type: 'update_sugarcrm', module: 'Opportunities', field: 'sales_stage', value: 'Closed Won' },
-        { type: 'attach_document', module: 'Opportunities', field: 'documents' }
-      ]
-    },
-    {
-      id: '2',
-      name: 'High Value Deal Approval',
-      description: 'Require approval for deals over $50,000',
-      triggerEvent: 'document_created',
-      isActive: true,
-      configMode: 'point_click',
-      ifThenElseRules: {
-        if: [{ field: 'amount', operator: 'greater_than', value: '50000' }],
-        then: [
-          { type: 'update_sugarcrm', module: 'Opportunities', field: 'approval_required_c', value: 'Yes' },
-          { type: 'send_notification', recipients: ['manager@company.com'], subject: 'High Value Deal Requires Approval' }
-        ],
-        else: [
-          { type: 'update_sugarcrm', module: 'Opportunities', field: 'approval_required_c', value: 'No' }
-        ]
-      },
-      actions: [
-        { type: 'update_sugarcrm', module: 'Opportunities', field: 'approval_required_c', value: 'Yes' }
-      ]
-    }
-  ];
-
-  const displayWorkflows = workflows.length > 0 ? workflows : (selectedTenant ? sampleWorkflows : []);
+  const displayWorkflows = workflows || [];
 
   return (
     <div className="flex-1 overflow-auto">
