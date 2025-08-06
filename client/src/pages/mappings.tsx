@@ -291,6 +291,25 @@ export default function Mappings() {
                                 field.onChange(value);
                                 form.setValue('sugarFieldLabel', selectedField.label);
                                 form.setValue('sugarFieldType', selectedField.type);
+                                
+                                // Auto-generate PandaDoc token from field label or name
+                                const currentPandaDocToken = form.getValues('pandaDocToken');
+                                if (!currentPandaDocToken) {
+                                  // Use label if available, otherwise use field name
+                                  const tokenName = selectedField.label || selectedField.name;
+                                  // Clean up the token name (remove spaces, convert to camelCase)
+                                  const cleanTokenName = tokenName
+                                    .replace(/[^\w\s]/g, '') // Remove special characters
+                                    .split(' ')
+                                    .map((word, index) => 
+                                      index === 0 
+                                        ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                                        : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                                    )
+                                    .join('');
+                                  
+                                  form.setValue('pandaDocToken', `[${cleanTokenName}]`);
+                                }
                               }
                             }} value={field.value}>
                               <FormControl>
@@ -325,14 +344,14 @@ export default function Mappings() {
                             </FormControl>
                             <FormMessage />
                             <div className="space-y-1">
-                              <p className="text-xs text-blue-600 font-medium">
-                                💡 Copy directly from your PandaDoc template
+                              <p className="text-xs text-green-600 font-medium">
+                                ✨ Auto-generated from field selection (editable)
+                              </p>
+                              <p className="text-xs text-blue-600">
+                                💡 Or copy directly from your PandaDoc template
                               </p>
                               <p className="text-xs text-gray-500">
                                 Supported formats: [field_name] or {`{{field_name}}`}
-                              </p>
-                              <p className="text-xs text-gray-400">
-                                Example: [Description], [Amount], [Company Name]
                               </p>
                             </div>
                           </FormItem>
