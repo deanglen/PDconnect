@@ -57,7 +57,7 @@ export default function Webhooks() {
 
   const retryMutation = useMutation({
     mutationFn: async (webhookId: string) => {
-      return await apiRequest(`/api/webhook-logs/${webhookId}/retry`, 'POST');
+      return await apiRequest(`/api/webhook-logs/${webhookId}/retry`, { method: 'POST' });
     },
     onSuccess: (_, webhookId) => {
       toast({
@@ -197,8 +197,9 @@ export default function Webhooks() {
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
@@ -226,6 +227,20 @@ export default function Webhooks() {
                   <SelectItem value="document_completed">PandaDoc - Document Completed</SelectItem>
                 </SelectContent>
               </Select>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  refetchLogs();
+                  queryClient.invalidateQueries({ queryKey: ['/api/webhook-stats'] });
+                  queryClient.invalidateQueries({ queryKey: ['/api/webhook-logs/failed'] });
+                }}
+                className="flex items-center space-x-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Refresh</span>
+              </Button>
             </div>
 
             <Card>
