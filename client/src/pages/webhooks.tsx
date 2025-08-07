@@ -360,68 +360,77 @@ export default function Webhooks() {
                                         View detailed information about this webhook event including payload, response, and triggered actions.
                                       </DialogDescription>
                                     </DialogHeader>
-                                    <div className="space-y-4">
-                                      <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-6">
+                                      {/* Basic Info Grid */}
+                                      <div className="grid grid-cols-3 gap-4">
                                         <div>
-                                          <p className="font-semibold">Status</p>
+                                          <p className="font-semibold text-sm">Status</p>
                                           <Badge className={getStatusColor(log.status)}>{log.status}</Badge>
                                         </div>
                                         <div>
-                                          <p className="font-semibold">Event ID</p>
-                                          <p className="text-sm font-mono">{log.eventId || 'N/A'}</p>
+                                          <p className="font-semibold text-sm">Event ID</p>
+                                          <p className="text-sm font-mono break-all">{log.eventId || 'N/A'}</p>
                                         </div>
                                         <div>
-                                          <p className="font-semibold">Received At</p>
+                                          <p className="font-semibold text-sm">Received At</p>
                                           <p className="text-sm">{formatTimestamp(log.receivedAt || log.createdAt)}</p>
                                         </div>
+                                      </div>
+
+                                      {/* Actions Triggered Section */}
+                                      {(log.actionsTriggered > 0 || (log.response?.actionsDetails && Array.isArray(log.response.actionsDetails))) && (
                                         <div>
-                                          <p className="font-semibold">Actions Triggered ({log.actionsTriggered || 0})</p>
+                                          <h4 className="font-semibold text-lg mb-3">Actions Triggered ({log.actionsTriggered || 0})</h4>
                                           {log.response?.actionsDetails && Array.isArray(log.response.actionsDetails) ? (
-                                            <div className="mt-2 space-y-2">
+                                            <div className="space-y-3">
                                               {log.response.actionsDetails.map((action: any, index: number) => (
-                                                <div key={index} className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-sm">
-                                                  <div className="flex items-center justify-between mb-2">
-                                                    <Badge 
-                                                      className={action.result?.status === 'success' ? 'bg-green-100 text-green-800' : 
-                                                                action.result?.status === 'error' ? 'bg-red-100 text-red-800' : 
-                                                                'bg-yellow-100 text-yellow-800'}
-                                                    >
-                                                      {action.result?.actionType || action.action?.type || 'Unknown'}
-                                                    </Badge>
-                                                    <span className="text-xs text-gray-500">
-                                                      {action.condition}
-                                                    </span>
+                                                <div key={index} className="border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                                                  <div className="flex items-center justify-between mb-3">
+                                                    <div className="flex items-center space-x-2">
+                                                      <Badge 
+                                                        className={action.result?.status === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 
+                                                                  action.result?.status === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 
+                                                                  'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'}
+                                                      >
+                                                        {action.result?.actionType || action.action?.type || 'Unknown'}
+                                                      </Badge>
+                                                      <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300">
+                                                        {action.condition}
+                                                      </span>
+                                                    </div>
+                                                    {action.result?.executionTimeMs && (
+                                                      <span className="text-xs text-gray-500">
+                                                        {action.result.executionTimeMs}ms
+                                                      </span>
+                                                    )}
                                                   </div>
-                                                  <p className="text-xs text-gray-600 mb-1">
-                                                    <strong>Workflow:</strong> {action.workflow}
-                                                  </p>
-                                                  {action.result?.message && (
-                                                    <p className="text-xs text-gray-700">
-                                                      {action.result.message}
+                                                  <div className="space-y-2">
+                                                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                                                      <strong>Workflow:</strong> {action.workflow}
                                                     </p>
-                                                  )}
-                                                  {action.result?.error && (
-                                                    <p className="text-xs text-red-600">
-                                                      <strong>Error:</strong> {action.result.error}
-                                                    </p>
-                                                  )}
-                                                  {action.result?.executionTimeMs && (
-                                                    <p className="text-xs text-gray-500 mt-1">
-                                                      Execution time: {action.result.executionTimeMs}ms
-                                                    </p>
-                                                  )}
+                                                    {action.result?.message && (
+                                                      <p className="text-sm text-gray-700 dark:text-gray-200 break-words">
+                                                        <strong>Result:</strong> {action.result.message}
+                                                      </p>
+                                                    )}
+                                                    {action.result?.error && (
+                                                      <p className="text-sm text-red-600 dark:text-red-400 break-words">
+                                                        <strong>Error:</strong> {action.result.error}
+                                                      </p>
+                                                    )}
+                                                  </div>
                                                 </div>
                                               ))}
                                             </div>
-                                          ) : log.actionsTriggered > 0 ? (
-                                            <p className="text-sm text-gray-500 mt-1">
-                                              {log.actionsTriggered} action(s) triggered (details not available for older logs)
-                                            </p>
                                           ) : (
-                                            <p className="text-sm text-gray-500 mt-1">No actions triggered</p>
+                                            <div className="bg-amber-50 dark:bg-amber-900 border border-amber-200 dark:border-amber-700 p-3 rounded">
+                                              <p className="text-sm text-amber-700 dark:text-amber-300">
+                                                {log.actionsTriggered} action(s) triggered (details not available for older logs)
+                                              </p>
+                                            </div>
                                           )}
                                         </div>
-                                      </div>
+                                      )}
                                       {log.errorMessage && (
                                         <Alert>
                                           <AlertTriangle className="h-4 w-4" />
