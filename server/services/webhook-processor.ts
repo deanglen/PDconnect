@@ -407,8 +407,30 @@ export class WebhookProcessor {
       [action.field]: interpolatedValue,
     };
 
+    // Capture the API request details
+    const apiPayload = {
+      method: 'PUT',
+      url: `${tenant.sugarCrmUrl}/rest/v11/${action.module}/${recordId}`,
+      headers: {
+        'Content-Type': 'application/json',
+        'OAuth-Token': '[REDACTED]'
+      },
+      body: updateData
+    };
+
+    console.log(`[WebhookProcessor] Making SugarCRM API call to update ${action.module} record ${recordId}:`, JSON.stringify(updateData, null, 2));
+
     const result = await sugarService.updateRecord(action.module, recordId, updateData);
     
+    // Capture the API response
+    const apiResponse = {
+      status: 200,
+      statusText: 'OK',
+      data: result
+    };
+
+    console.log(`[WebhookProcessor] SugarCRM API response:`, JSON.stringify(result, null, 2));
+
     return {
       status: 'success',
       actionType: 'update_record',
@@ -417,8 +439,13 @@ export class WebhookProcessor {
       field: action.field,
       value: interpolatedValue,
       originalValue: action.value,
-      sugarResult: result,
-      message: `Updated ${action.module} record ${recordId}: ${action.field} = ${interpolatedValue}`
+      message: `Updated ${action.module} record ${recordId}: ${action.field} = ${interpolatedValue}`,
+      apiCall: {
+        request: apiPayload,
+        response: apiResponse,
+        timestamp: new Date().toISOString(),
+        executionTimeMs: 0 // Will be set by caller
+      }
     };
   }
 
@@ -556,16 +583,129 @@ export class WebhookProcessor {
   }
 
   private static async syncFieldsToSugarCRMWithDetails(action: any, payload: any, tenant: any): Promise<any> {
+    const startTime = Date.now();
+    
     try {
-      // Call the existing sync method and capture details
-      await this.syncFieldsToSugarCRM(action, payload, tenant);
+      const { SugarCRMService } = await import('./sugarcrm');
+      const sugarService = new SugarCRMService(tenant);
+
+      // Get document ID and metadata - use real_document_id if available (for test cases)
+      const documentId = payload.data?.metadata?.real_document_id || payload.data?.id;
+      const recordId = payload.data?.metadata?.sugar_record_id;
+      const recordModule = payload.data?.metadata?.sugar_module || 'Opportunities';
+
+      if (!documentId) {
+        throw new Error('Document ID not found in webhook payload');
+      }
+
+      if (!recordId) {
+        throw new Error('SugarCRM record ID not found in webhook metadata');
+      }
+
+      console.log(`[WebhookProcessor] Starting field sync for document ${documentId} to ${recordModule} record ${recordId}`);
+
+      // Step 1: Extract field values from webhook payload (no API call needed)
+      const webhookFields = payload.data?.fields || [];
+      console.log(`[WebhookProcessor] Found ${webhookFields.length} fields in webhook payload`);
+      
+      // Convert webhook fields to lookup object for easier mapping
+      const fieldValuesLookup: Record<string, any> = {};
+      webhookFields.forEach((field: any) => {
+        const fieldName = field.merge_field || field.name || '';
+        if (fieldName && field.value !== undefined) {
+          fieldValuesLookup[fieldName.toLowerCase()] = field.value;
+        }
+      });
+      
+      console.log(`[WebhookProcessor] Available field names:`, Object.keys(fieldValuesLookup));
+
+      // Step 2: Get field mappings for this tenant and module  
+      const fieldMappings = await storage.getFieldMappings(tenant.id, recordModule);
+      console.log(`[WebhookProcessor] Found ${fieldMappings.length} field mappings for ${recordModule}`);
+
+      if (fieldMappings.length === 0) {
+        console.log(`[WebhookProcessor] No field mappings found for tenant ${tenant.id} and module ${recordModule}`);
+        return {
+          status: 'success',
+          actionType: 'sync_fields',
+          message: 'No field mappings found',
+          fieldsMapped: 0,
+          executionTimeMs: Date.now() - startTime
+        };
+      }
+
+      // Step 3: Map PandaDoc values to SugarCRM fields
+      const sugarUpdateData: Record<string, any> = {};
+      let mappedFieldsCount = 0;
+
+      for (const mapping of fieldMappings) {
+        if (!mapping.isActive) continue;
+
+        // Clean the PandaDoc token name (remove [[ ]] and {{ }} brackets)
+        const cleanTokenName = mapping.pandaDocToken
+          .replace(/^\[\[|\]\]$/g, '') // Remove [[ ]]
+          .replace(/^\{\{|\}\}$/g, '') // Remove {{ }}
+          .toLowerCase();
+
+        if (fieldValuesLookup.hasOwnProperty(cleanTokenName)) {
+          const fieldValue = fieldValuesLookup[cleanTokenName];
+          sugarUpdateData[mapping.sugarCrmField] = fieldValue;
+          mappedFieldsCount++;
+          
+          console.log(`[WebhookProcessor] Mapped field: ${mapping.pandaDocToken} -> ${mapping.sugarCrmField} = ${fieldValue}`);
+        } else {
+          console.log(`[WebhookProcessor] No value found for PandaDoc token: ${mapping.pandaDocToken} (cleaned: ${cleanTokenName})`);
+        }
+      }
+
+      if (Object.keys(sugarUpdateData).length === 0) {
+        console.log(`[WebhookProcessor] No fields to sync - no matching values found in webhook payload`);
+        return {
+          status: 'success',
+          actionType: 'sync_fields',
+          message: 'No matching field values found in webhook payload',
+          fieldsMapped: 0,
+          executionTimeMs: Date.now() - startTime
+        };
+      }
+
+      // Step 4: Update SugarCRM record with captured API details
+      const apiPayload = {
+        method: 'PUT',
+        url: `${tenant.sugarCrmUrl}/rest/v11/${recordModule}/${recordId}`,
+        headers: {
+          'Content-Type': 'application/json',
+          'OAuth-Token': '[REDACTED]'
+        },
+        body: sugarUpdateData
+      };
+
+      console.log(`[WebhookProcessor] Making SugarCRM API call to sync ${mappedFieldsCount} fields to ${recordModule} record ${recordId}:`, JSON.stringify(sugarUpdateData, null, 2));
+
+      const result = await sugarService.updateRecord(recordModule, recordId, sugarUpdateData);
+      
+      const apiResponse = {
+        status: 200,
+        statusText: 'OK',
+        data: result
+      };
+
+      console.log(`[WebhookProcessor] Field sync completed successfully. Updated ${recordModule} record ${recordId} with ${mappedFieldsCount} fields`);
       
       return {
         status: 'success',
         actionType: 'sync_fields',
-        fields: action.fields || 'all configured fields',
-        message: 'Fields synchronized to SugarCRM',
-        payload: payload.data
+        module: recordModule,
+        recordId: recordId,
+        fieldsMapped: mappedFieldsCount,
+        syncedFields: Object.keys(sugarUpdateData),
+        message: `Synchronized ${mappedFieldsCount} fields to SugarCRM ${recordModule} record`,
+        apiCall: {
+          request: apiPayload,
+          response: apiResponse,
+          timestamp: new Date().toISOString(),
+          executionTimeMs: Date.now() - startTime
+        }
       };
     } catch (error) {
       throw error;
