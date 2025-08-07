@@ -341,6 +341,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test field mapping for specific opportunity and document template
+  app.get("/api/tenants/:tenantId/test/field-mapping/:opportunityId", createAuthMiddleware(), async (req: Request, res: Response) => {
+    try {
+      const { tenantId, opportunityId } = req.params;
+      
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      // Get active document templates for this tenant
+      const templates = await storage.getDocumentTemplates(tenantId);
+      const activeTemplate = templates.find(t => t.isActive);
+      
+      if (!activeTemplate) {
+        return res.status(404).json({ message: "No active document template found" });
+      }
+
+      const sugarService = new SugarCRMService(tenant);
+      
+      // Fetch the specific opportunity
+      const opportunityData = await sugarService.getRecord("Opportunities", opportunityId);
+      
+      if (!opportunityData) {
+        return res.status(404).json({ message: "Opportunity not found" });
+      }
+
+      // Resolve recipients using TokenMappingService
+      const TokenMappingService = require('./services/TokenMappingService').TokenMappingService;
+      const resolvedRecipients = await TokenMappingService.resolveRecipients(
+        activeTemplate.defaultRecipients || [],
+        opportunityData,
+        sugarService
+      );
+
+      // Generate PandaDoc create document payload
+      const createDocumentPayload = {
+        name: `${activeTemplate.name} - ${opportunityData.name || 'Opportunity'}`,
+        template_uuid: activeTemplate.pandaDocTemplateId,
+        folder_uuid: activeTemplate.folderUuid || undefined,
+        recipients: resolvedRecipients.map(r => ({
+          email: r.email,
+          first_name: r.first_name,
+          last_name: r.last_name,
+          role: r.role,
+          signing_order: r.signing_order || 1
+        })),
+        tokens: activeTemplate.tokenMappings?.map((mapping: any) => ({
+          name: mapping.panda_doc_token || mapping.sugar_field,
+          value: opportunityData[mapping.sugar_field] || ''
+        })) || [],
+        metadata: {
+          tenant_id: tenantId,
+          template_id: activeTemplate.id,
+          sugar_module: "Opportunities",
+          sugar_record_id: opportunityId,
+          integration_source: "sugarcrm_pandadoc_middleware"
+        }
+      };
+
+      res.json({
+        template: {
+          id: activeTemplate.id,
+          name: activeTemplate.name,
+          pandaDocTemplateId: activeTemplate.pandaDocTemplateId
+        },
+        opportunity: {
+          id: opportunityId,
+          name: opportunityData.name,
+          amount: opportunityData.amount_usdollar,
+          probability: opportunityData.probability
+        },
+        resolvedRecipients,
+        fieldMappings: activeTemplate.fieldMappings || [],
+        tokenMappings: activeTemplate.tokenMappings || [],
+        pandaDocCreateRequest: createDocumentPayload,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Field mapping test error:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to test field mapping",
+        error: error instanceof Error ? error.stack : String(error)
+      });
+    }
+  });
+
   // Auth status endpoint  
   app.get("/auth-status", (req: Request, res: Response) => {
     res.json(getAuthStatus());
