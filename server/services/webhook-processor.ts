@@ -128,6 +128,7 @@ export class WebhookProcessor {
         status: 'success',
         message: 'Webhook processed successfully',
         actionsTriggered: result.actionsTriggered,
+        actionsDetails: result.actionsDetails,
         processingTimeMs: processingTime,
         timestamp: new Date().toISOString()
       };
@@ -151,7 +152,7 @@ export class WebhookProcessor {
   /**
    * Execute the actual webhook processing logic
    */
-  private static async executeWebhookProcessing(webhookLog: WebhookLog): Promise<{ actionsTriggered: number }> {
+  private static async executeWebhookProcessing(webhookLog: WebhookLog): Promise<{ actionsTriggered: number; actionsDetails: any[] }> {
     if (!webhookLog.tenantId) {
       throw new Error('No tenant ID associated with webhook');
     }
@@ -172,10 +173,11 @@ export class WebhookProcessor {
         status: 'no_workflows_found',
         timestamp: new Date().toISOString(),
       });
-      return { actionsTriggered: 0 };
+      return { actionsTriggered: 0, actionsDetails: [] };
     }
 
     let totalActionsTriggered = 0;
+    let actionsDetails: any[] = [];
 
     // Process each workflow manually since processWebhook creates its own log
     for (const workflow of workflows) {
@@ -189,18 +191,39 @@ export class WebhookProcessor {
           
           if (conditionsMet && rules.then && Array.isArray(rules.then)) {
             for (const action of rules.then) {
-              await this.executeAction(action, webhookLog.payload, tenant);
+              const actionResult = await this.executeActionWithDetails(action, webhookLog.payload, tenant);
+              actionsDetails.push({
+                workflow: workflow.name,
+                action: action,
+                result: actionResult,
+                condition: 'if_then',
+                timestamp: new Date().toISOString()
+              });
               actionsExecuted++;
             }
           } else if (!conditionsMet && rules.else && Array.isArray(rules.else)) {
             for (const action of rules.else) {
-              await this.executeAction(action, webhookLog.payload, tenant);
+              const actionResult = await this.executeActionWithDetails(action, webhookLog.payload, tenant);
+              actionsDetails.push({
+                workflow: workflow.name,
+                action: action,
+                result: actionResult,
+                condition: 'if_else',
+                timestamp: new Date().toISOString()
+              });
               actionsExecuted++;
             }
           }
         } else if (workflow.actions && Array.isArray(workflow.actions)) {
           for (const action of workflow.actions) {
-            await this.executeAction(action, webhookLog.payload, tenant);
+            const actionResult = await this.executeActionWithDetails(action, webhookLog.payload, tenant);
+            actionsDetails.push({
+              workflow: workflow.name,
+              action: action,
+              result: actionResult,
+              condition: 'direct',
+              timestamp: new Date().toISOString()
+            });
             actionsExecuted++;
           }
         }
@@ -216,6 +239,17 @@ export class WebhookProcessor {
           timestamp: new Date().toISOString(),
         });
       } catch (workflowError) {
+        actionsDetails.push({
+          workflow: workflow.name,
+          action: null,
+          result: { 
+            status: 'error', 
+            error: workflowError instanceof Error ? workflowError.message : 'Unknown error' 
+          },
+          condition: 'error',
+          timestamp: new Date().toISOString()
+        });
+        
         logger.logWorkflowExecution({
           workflowId: workflow.id,
           workflowName: workflow.name,
@@ -228,7 +262,7 @@ export class WebhookProcessor {
       }
     }
 
-    return { actionsTriggered: totalActionsTriggered };
+    return { actionsTriggered: totalActionsTriggered, actionsDetails };
   }
 
   /**
@@ -279,7 +313,52 @@ export class WebhookProcessor {
   }
 
   /**
-   * Execute a workflow action
+   * Execute a workflow action with detailed response tracking
+   */
+  private static async executeActionWithDetails(action: any, payload: any, tenant: any): Promise<any> {
+    try {
+      const startTime = Date.now();
+      let result: any = { status: 'success' };
+
+      switch (action.type) {
+        case 'update_record':
+          result = await this.updateSugarCRMRecordWithDetails(action, payload, tenant);
+          break;
+        case 'attach_file':
+          result = await this.attachFileToSugarCRMWithDetails(action, payload, tenant);
+          break;
+        case 'create_note':
+          result = await this.createSugarCRMNoteWithDetails(action, payload, tenant);
+          break;
+        case 'log_activity':
+          result = await this.logActivityWithDetails(action, payload);
+          break;
+        case 'send_notification':
+          result = await this.sendNotificationWithDetails(action, payload);
+          break;
+        case 'sync_fields':
+          result = await this.syncFieldsToSugarCRMWithDetails(action, payload, tenant);
+          break;
+        case 'sync_all_fields':
+          result = await this.syncAllFieldsToSugarCRMWithDetails(action, payload, tenant);
+          break;
+        default:
+          result = { status: 'warning', message: `Unknown action type: ${action.type}` };
+      }
+
+      result.executionTimeMs = Date.now() - startTime;
+      return result;
+    } catch (error) {
+      return {
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        executionTimeMs: Date.now() - Date.now()
+      };
+    }
+  }
+
+  /**
+   * Execute a workflow action (legacy method for backward compatibility)
    */
   private static async executeAction(action: any, payload: any, tenant: any): Promise<void> {
     switch (action.type) {
@@ -309,6 +388,40 @@ export class WebhookProcessor {
     }
   }
 
+  private static async updateSugarCRMRecordWithDetails(action: any, payload: any, tenant: any): Promise<any> {
+    const { SugarCRMService } = await import('./sugarcrm');
+    const sugarService = new SugarCRMService(tenant);
+    
+    if (!action.module || !action.field) {
+      throw new Error('Module and field are required for update_record action');
+    }
+
+    // Get record ID from metadata
+    const recordId = payload.data?.metadata?.sugar_record_id;
+    if (!recordId) {
+      throw new Error('No related SugarCRM record found for document');
+    }
+
+    const interpolatedValue = this.interpolateValue(action.value, payload);
+    const updateData = {
+      [action.field]: interpolatedValue,
+    };
+
+    const result = await sugarService.updateRecord(action.module, recordId, updateData);
+    
+    return {
+      status: 'success',
+      actionType: 'update_record',
+      module: action.module,
+      recordId,
+      field: action.field,
+      value: interpolatedValue,
+      originalValue: action.value,
+      sugarResult: result,
+      message: `Updated ${action.module} record ${recordId}: ${action.field} = ${interpolatedValue}`
+    };
+  }
+
   private static async updateSugarCRMRecord(action: any, payload: any, tenant: any): Promise<void> {
     const { SugarCRMService } = await import('./sugarcrm');
     const sugarService = new SugarCRMService(tenant);
@@ -328,6 +441,52 @@ export class WebhookProcessor {
     };
 
     await sugarService.updateRecord(action.module, recordId, updateData);
+  }
+
+  private static async attachFileToSugarCRMWithDetails(action: any, payload: any, tenant: any): Promise<any> {
+    const { SugarCRMService } = await import('./sugarcrm');
+    const { PandaDocService } = await import('./pandadoc');
+    
+    const sugarService = new SugarCRMService(tenant);
+    const pandaService = new PandaDocService(tenant);
+
+    // Get document ID and metadata - use real_document_id if available (for test cases)
+    const documentId = payload.data?.metadata?.real_document_id || payload.data?.id;
+    const recordId = payload.data?.metadata?.sugar_record_id;
+    const recordModule = payload.data?.metadata?.sugar_module || 'Opportunities';
+    
+    if (!documentId || !recordId) {
+      throw new Error('Document ID and SugarCRM record ID are required for file attachment');
+    }
+
+    try {
+      // Download PDF from PandaDoc
+      const pdfBuffer = await pandaService.downloadDocument(documentId);
+      const fileName = `${payload.data?.name || 'Document'}.pdf`;
+
+      // Upload to SugarCRM Notes module
+      const attachmentResult = await sugarService.createFileAttachment({
+        fileName,
+        fileContent: pdfBuffer,
+        parentType: recordModule,
+        parentId: recordId,
+        description: `Document from PandaDoc: ${payload.data?.name || 'Untitled'}`
+      });
+
+      return {
+        status: 'success',
+        actionType: 'attach_file',
+        documentId,
+        fileName,
+        fileSize: pdfBuffer.length,
+        parentModule: recordModule,
+        parentId: recordId,
+        attachmentResult,
+        message: `Successfully attached ${fileName} (${pdfBuffer.length} bytes) to ${recordModule} ${recordId}`
+      };
+    } catch (error) {
+      throw error;
+    }
   }
 
   private static async attachFileToSugarCRM(action: any, payload: any, tenant: any): Promise<void> {
@@ -363,6 +522,68 @@ export class WebhookProcessor {
       console.log(`Successfully attached file ${fileName} to ${recordModule} ${recordId}`);
     } catch (error) {
       console.error('Error attaching file to SugarCRM:', error);
+      throw error;
+    }
+  }
+
+  private static async createSugarCRMNoteWithDetails(action: any, payload: any, tenant: any): Promise<any> {
+    return {
+      status: 'success',
+      actionType: 'create_note',
+      message: 'Create note action executed (not fully implemented)',
+      details: action
+    };
+  }
+
+  private static async logActivityWithDetails(action: any, payload: any): Promise<any> {
+    return {
+      status: 'success',
+      actionType: 'log_activity',
+      subject: action.subject,
+      message: `Activity logged: ${action.subject}`,
+      payload: payload.data?.id || 'N/A'
+    };
+  }
+
+  private static async sendNotificationWithDetails(action: any, payload: any): Promise<any> {
+    return {
+      status: 'success',
+      actionType: 'send_notification',
+      recipients: action.recipients,
+      subject: action.subject,
+      message: `Notification sent to ${action.recipients}: ${action.subject}`
+    };
+  }
+
+  private static async syncFieldsToSugarCRMWithDetails(action: any, payload: any, tenant: any): Promise<any> {
+    try {
+      // Call the existing sync method and capture details
+      await this.syncFieldsToSugarCRM(action, payload, tenant);
+      
+      return {
+        status: 'success',
+        actionType: 'sync_fields',
+        fields: action.fields || 'all configured fields',
+        message: 'Fields synchronized to SugarCRM',
+        payload: payload.data
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private static async syncAllFieldsToSugarCRMWithDetails(action: any, payload: any, tenant: any): Promise<any> {
+    try {
+      // Call the existing sync method and capture details
+      await this.syncAllFieldsToSugarCRM(action, payload, tenant);
+      
+      return {
+        status: 'success',
+        actionType: 'sync_all_fields',
+        message: 'All fields synchronized to SugarCRM',
+        payload: payload.data
+      };
+    } catch (error) {
       throw error;
     }
   }

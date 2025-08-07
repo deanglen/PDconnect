@@ -372,8 +372,51 @@ export default function Webhooks() {
                                           <p className="text-sm">{formatTimestamp(log.receivedAt || log.createdAt)}</p>
                                         </div>
                                         <div>
-                                          <p className="font-semibold">Actions Triggered</p>
-                                          <p className="text-sm">{log.actionsTriggered || 0}</p>
+                                          <p className="font-semibold">Actions Triggered ({log.actionsTriggered || 0})</p>
+                                          {log.response?.actionsDetails && Array.isArray(log.response.actionsDetails) ? (
+                                            <div className="mt-2 space-y-2">
+                                              {log.response.actionsDetails.map((action: any, index: number) => (
+                                                <div key={index} className="bg-gray-50 dark:bg-gray-800 p-3 rounded text-sm">
+                                                  <div className="flex items-center justify-between mb-2">
+                                                    <Badge 
+                                                      className={action.result?.status === 'success' ? 'bg-green-100 text-green-800' : 
+                                                                action.result?.status === 'error' ? 'bg-red-100 text-red-800' : 
+                                                                'bg-yellow-100 text-yellow-800'}
+                                                    >
+                                                      {action.result?.actionType || action.action?.type || 'Unknown'}
+                                                    </Badge>
+                                                    <span className="text-xs text-gray-500">
+                                                      {action.condition}
+                                                    </span>
+                                                  </div>
+                                                  <p className="text-xs text-gray-600 mb-1">
+                                                    <strong>Workflow:</strong> {action.workflow}
+                                                  </p>
+                                                  {action.result?.message && (
+                                                    <p className="text-xs text-gray-700">
+                                                      {action.result.message}
+                                                    </p>
+                                                  )}
+                                                  {action.result?.error && (
+                                                    <p className="text-xs text-red-600">
+                                                      <strong>Error:</strong> {action.result.error}
+                                                    </p>
+                                                  )}
+                                                  {action.result?.executionTimeMs && (
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                      Execution time: {action.result.executionTimeMs}ms
+                                                    </p>
+                                                  )}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          ) : log.actionsTriggered > 0 ? (
+                                            <p className="text-sm text-gray-500 mt-1">
+                                              {log.actionsTriggered} action(s) triggered (details not available for older logs)
+                                            </p>
+                                          ) : (
+                                            <p className="text-sm text-gray-500 mt-1">No actions triggered</p>
+                                          )}
                                         </div>
                                       </div>
                                       {log.errorMessage && (
