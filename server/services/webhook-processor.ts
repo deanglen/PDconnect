@@ -291,6 +291,9 @@ export class WebhookProcessor {
       case 'sync_fields':
         await this.syncFieldsToSugarCRM(action, payload, tenant);
         break;
+      case 'sync_all_fields':
+        await this.syncAllFieldsToSugarCRM(action, payload, tenant);
+        break;
       default:
         console.warn(`Unknown action type: ${action.type}`);
     }
@@ -652,6 +655,98 @@ export class WebhookProcessor {
     } catch (error: any) {
       console.error(`[WebhookProcessor] Error syncing fields from PandaDoc to SugarCRM:`, error);
       throw new Error(`Failed to sync fields: ${error.message}`);
+    }
+  }
+
+  /**
+   * NEW: Sync ALL PandaDoc fields to SugarCRM using field mappings (bulk sync action)
+   */
+  private static async syncAllFieldsToSugarCRM(action: any, payload: any, tenant: any): Promise<void> {
+    const { SugarCRMService } = await import('./sugarcrm');
+    
+    const sugarService = new SugarCRMService(tenant);
+
+    // Get document metadata 
+    const documentId = payload.data?.id;
+    const recordId = payload.data?.metadata?.sugar_record_id;
+    const recordModule = action.module || payload.data?.metadata?.sugar_module || 'Opportunities';
+
+    if (!documentId) {
+      throw new Error('Document ID not found in webhook payload');
+    }
+
+    if (!recordId) {
+      throw new Error('SugarCRM record ID not found in webhook metadata');
+    }
+
+    console.log(`[WebhookProcessor] BULK SYNC: Starting sync of ALL fields for document ${documentId} to ${recordModule} record ${recordId}`);
+
+    try {
+      // Extract field values from webhook payload (all fields at once)
+      const webhookFields = payload.data?.fields || [];
+      console.log(`[WebhookProcessor] BULK SYNC: Found ${webhookFields.length} fields in webhook payload`);
+      
+      // Convert webhook fields to lookup object
+      const fieldValuesLookup: Record<string, any> = {};
+      webhookFields.forEach((field: any) => {
+        const fieldName = field.merge_field || field.name || '';
+        if (fieldName && field.value !== undefined) {
+          fieldValuesLookup[fieldName.toLowerCase()] = field.value;
+        }
+      });
+      
+      console.log(`[WebhookProcessor] BULK SYNC: Available field names:`, Object.keys(fieldValuesLookup));
+
+      // Get ALL active field mappings for this tenant and module  
+      const fieldMappings = await storage.getFieldMappings(tenant.id, recordModule);
+      console.log(`[WebhookProcessor] BULK SYNC: Found ${fieldMappings.length} field mappings for ${recordModule}`);
+
+      if (fieldMappings.length === 0) {
+        console.log(`[WebhookProcessor] BULK SYNC: No field mappings found for tenant ${tenant.id} and module ${recordModule}. Please configure field mappings in the Field Mappings section.`);
+        return;
+      }
+
+      // Map ALL available PandaDoc values to SugarCRM fields
+      const sugarUpdateData: Record<string, any> = {};
+      let mappedFieldsCount = 0;
+
+      for (const mapping of fieldMappings) {
+        if (!mapping.isActive) continue;
+
+        // Clean the PandaDoc token name (remove brackets)
+        const cleanTokenName = mapping.pandaDocToken
+          .replace(/^\[\[|\]\]$/g, '') // Remove [[ ]]
+          .replace(/^\[|\]$/g, '')     // Remove [ ]
+          .replace(/^\{\{|\}\}$/g, '') // Remove {{ }}
+          .toLowerCase();
+        
+        console.log(`[WebhookProcessor] BULK SYNC: Looking for field "${cleanTokenName}" from token "${mapping.pandaDocToken}"`);
+        
+        // Look for the value in webhook field values
+        if (fieldValuesLookup.hasOwnProperty(cleanTokenName)) {
+          const value = fieldValuesLookup[cleanTokenName];
+          if (value !== undefined && value !== null && value !== '') {
+            sugarUpdateData[mapping.sugarField] = value;
+            mappedFieldsCount++;
+            console.log(`[WebhookProcessor] BULK SYNC: Mapped ${cleanTokenName} -> ${mapping.sugarField}: ${value}`);
+          }
+        } else {
+          console.log(`[WebhookProcessor] BULK SYNC: No matching field found for "${cleanTokenName}" in webhook payload`);
+        }
+      }
+
+      // Update SugarCRM record with ALL mapped fields
+      if (mappedFieldsCount > 0) {
+        console.log(`[WebhookProcessor] BULK SYNC: Updating SugarCRM ${recordModule} ${recordId} with ${mappedFieldsCount} fields`);
+        await sugarService.updateRecord(recordModule, recordId, sugarUpdateData);
+        console.log(`[WebhookProcessor] BULK SYNC: Successfully synced ${mappedFieldsCount} fields from PandaDoc to SugarCRM ${recordModule} ${recordId}`);
+      } else {
+        console.log(`[WebhookProcessor] BULK SYNC: No field values to sync - all mappings were empty or undefined`);
+      }
+
+    } catch (error: any) {
+      console.error(`[WebhookProcessor] BULK SYNC: Error syncing all fields from PandaDoc to SugarCRM:`, error);
+      throw new Error(`Failed to bulk sync fields: ${error.message}`);
     }
   }
 }

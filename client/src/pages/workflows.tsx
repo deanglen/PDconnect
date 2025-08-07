@@ -255,6 +255,7 @@ function WorkflowEditor({
     { value: 'create_meeting', label: 'Create Meeting', description: 'Create a meeting record using POST /Meetings' },
     { value: 'attach_file', label: 'Attach File to Record', description: 'Attach PandaDoc document using POST /{module}/{id}/file/{field}' },
     { value: 'create_relationship', label: 'Create Record Relationship', description: 'Link records together using POST /{module}/{id}/link/{link_name}' },
+    { value: 'sync_all_fields', label: 'Sync All PandaDoc Fields', description: 'Automatically sync all PandaDoc merge fields to SugarCRM using field mappings' },
     { value: 'send_email', label: 'Send Email', description: 'Create and send email using POST /Emails' }
   ];
 
@@ -781,6 +782,36 @@ function WorkflowEditor({
                     </div>
                   </div>
                 )}
+
+                {/* Sync All Fields Action */}
+                {action.type === 'sync_all_fields' && (
+                  <div className="space-y-3">
+                    <div className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-3 rounded border">
+                      <strong>Bulk Field Sync:</strong> This action automatically syncs ALL merge fields from the PandaDoc document to SugarCRM using your configured field mappings. 
+                      No manual field specification required - the system uses the field mappings configured in the "Field Mappings" section.
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                        Target Module
+                      </Label>
+                      <Select
+                        value={action.module || 'Opportunities'}
+                        onValueChange={(value) => updateAction('then', index, 'module', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Module" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sugarModules.map(module => (
+                            <SelectItem key={module.value} value={module.value}>
+                              {module.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
                 
                 {/* Create Note Action */}
                 {(action.type === 'create_note' || action.type === 'create_task' || action.type === 'create_call' || action.type === 'create_meeting') && (
@@ -1095,6 +1126,36 @@ function WorkflowEditor({
                           value={action.value || ''}
                           onChange={(e) => updateAction('else', index, 'value', e.target.value)}
                         />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Sync All Fields Action */}
+                  {action.type === 'sync_all_fields' && (
+                    <div className="space-y-3">
+                      <div className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-3 rounded border">
+                        <strong>Bulk Field Sync:</strong> This action automatically syncs ALL merge fields from the PandaDoc document to SugarCRM using your configured field mappings. 
+                        No manual field specification required - the system uses the field mappings configured in the "Field Mappings" section.
+                      </div>
+                      <div>
+                        <Label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">
+                          Target Module
+                        </Label>
+                        <Select
+                          value={action.module || 'Opportunities'}
+                          onValueChange={(value) => updateAction('else', index, 'module', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Module" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sugarModules.map(module => (
+                              <SelectItem key={module.value} value={module.value}>
+                                {module.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   )}
