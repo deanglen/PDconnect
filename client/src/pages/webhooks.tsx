@@ -437,20 +437,33 @@ export default function Webhooks() {
                                           <AlertDescription>{log.errorMessage}</AlertDescription>
                                         </Alert>
                                       )}
-                                      <div>
-                                        <p className="font-semibold mb-2">Payload</p>
-                                        <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded text-xs overflow-auto max-h-64">
-                                          {JSON.stringify(log.payload, null, 2)}
-                                        </pre>
-                                      </div>
-                                      {log.response && (
+                                      {/* Payload and Response in two columns for better space usage */}
+                                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                         <div>
-                                          <p className="font-semibold mb-2">Response</p>
-                                          <pre className="bg-blue-50 dark:bg-blue-900 p-4 rounded text-xs overflow-auto max-h-64">
-                                            {JSON.stringify(log.response, null, 2)}
-                                          </pre>
+                                          <p className="font-semibold mb-2 flex items-center">
+                                            <span className="mr-2">📤</span>
+                                            Payload
+                                          </p>
+                                          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                                            <pre className="bg-gray-50 dark:bg-gray-800 p-3 text-xs overflow-auto h-48 leading-relaxed">
+                                              {JSON.stringify(log.payload, null, 2)}
+                                            </pre>
+                                          </div>
                                         </div>
-                                      )}
+                                        {log.response && (
+                                          <div>
+                                            <p className="font-semibold mb-2 flex items-center">
+                                              <span className="mr-2">📥</span>
+                                              Response
+                                            </p>
+                                            <div className="border border-blue-200 dark:border-blue-700 rounded-lg overflow-hidden">
+                                              <pre className="bg-blue-50 dark:bg-blue-900/50 p-3 text-xs overflow-auto h-48 leading-relaxed">
+                                                {JSON.stringify(log.response, null, 2)}
+                                              </pre>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
                                   </DialogContent>
                                 </Dialog>
