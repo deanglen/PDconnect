@@ -528,44 +528,114 @@ export class SugarCRMService {
     try {
       await this.ensureAuthenticated();
       
-      // Convert buffer to base64
-      const base64Content = params.fileContent.toString('base64');
+      console.log(`[SugarCRM] Creating file attachment: ${params.fileName} (${params.fileContent.length} bytes) for ${params.parentType} ${params.parentId}`);
       
-      // Create Note with file attachment
+      // Step 1: Create the Note record first
       const noteData = {
         name: params.fileName,
         filename: params.fileName,
-        file_mime_type: 'application/pdf',
-        file: base64Content,
         parent_type: params.parentType,
         parent_id: params.parentId,
         description: params.description || `Document from PandaDoc: ${params.fileName}`,
       };
       
-      console.log(`[SugarCRM] Creating file attachment: ${params.fileName} for ${params.parentType} ${params.parentId}`);
+      console.log(`[SugarCRM] Step 1: Creating Note record with data:`, JSON.stringify(noteData, null, 2));
+      const noteResponse = await this.client.post('/Notes', noteData);
+      const noteId = noteResponse.data.id;
+      console.log(`[SugarCRM] Step 1 Complete: Created Note record with ID: ${noteId}`);
       
-      const response = await this.client.post('/Notes', noteData);
-      console.log(`[SugarCRM] Successfully created file attachment with ID: ${response.data.id}`);
+      // Step 2: Upload the file to the Note record using the file endpoint
+      const FormData = (await import('form-data')).default;
+      const formData = new FormData();
       
-      return response.data;
+      // Add the file as a buffer with proper metadata
+      formData.append('filename', params.fileContent, {
+        filename: params.fileName,
+        contentType: 'application/pdf',
+      });
+      
+      // Add other required fields
+      formData.append('name', params.fileName);
+      formData.append('id', noteId);
+      
+      console.log(`[SugarCRM] Step 2: Uploading file content for Note ${noteId}`);
+      
+      // Upload the file using multipart/form-data
+      const uploadResponse = await this.client.put(`/Notes/${noteId}/file/filename`, formData, {
+        headers: {
+          ...formData.getHeaders(),
+          'Content-Type': `multipart/form-data; boundary=${formData.getBoundary()}`
+        },
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity
+      });
+      
+      console.log(`[SugarCRM] Step 2 Complete: File uploaded successfully`);
+      console.log(`[SugarCRM] Upload response:`, JSON.stringify(uploadResponse.data, null, 2));
+      
+      // Step 3: Verify the attachment was created
+      const verifyResponse = await this.client.get(`/Notes/${noteId}`);
+      console.log(`[SugarCRM] Step 3: Verification - Note record after file upload:`, JSON.stringify(verifyResponse.data, null, 2));
+      
+      return {
+        ...noteResponse.data,
+        fileUploaded: true,
+        fileSize: params.fileContent.length,
+        uploadResponse: uploadResponse.data,
+        verification: verifyResponse.data
+      };
+      
     } catch (error: any) {
+      console.error(`[SugarCRM] File attachment error:`, error.message);
+      console.error(`[SugarCRM] Error response:`, error.response?.data);
+      console.error(`[SugarCRM] Error status:`, error.response?.status);
+      console.error(`[SugarCRM] Error headers:`, error.response?.headers);
+      
       if (error.response?.status === 401) {
         await this.refreshAccessToken();
-        // Retry the request
-        const base64Content = params.fileContent.toString('base64');
+        // For retry, we need to implement the same multi-step process
+        console.log(`[SugarCRM] Retrying after token refresh...`);
+        
+        // Step 1: Create the Note record
         const noteData = {
           name: params.fileName,
           filename: params.fileName,
-          file_mime_type: 'application/pdf',
-          file: base64Content,
           parent_type: params.parentType,
           parent_id: params.parentId,
           description: params.description || `Document from PandaDoc: ${params.fileName}`,
         };
         
-        const response = await this.client.post('/Notes', noteData);
-        console.log(`[SugarCRM] Successfully created file attachment with ID: ${response.data.id}`);
-        return response.data;
+        const noteResponse = await this.client.post('/Notes', noteData);
+        const noteId = noteResponse.data.id;
+        console.log(`[SugarCRM] Retry Step 1: Created Note record with ID: ${noteId}`);
+        
+        // Step 2: Upload the file
+        const FormData = (await import('form-data')).default;
+        const formData = new FormData();
+        formData.append('filename', params.fileContent, {
+          filename: params.fileName,
+          contentType: 'application/pdf',
+        });
+        formData.append('name', params.fileName);
+        formData.append('id', noteId);
+        
+        const uploadResponse = await this.client.put(`/Notes/${noteId}/file/filename`, formData, {
+          headers: {
+            ...formData.getHeaders(),
+            'Content-Type': `multipart/form-data; boundary=${formData.getBoundary()}`
+          },
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity
+        });
+        
+        console.log(`[SugarCRM] Retry Step 2: File uploaded successfully`);
+        
+        return {
+          ...noteResponse.data,
+          fileUploaded: true,
+          fileSize: params.fileContent.length,
+          uploadResponse: uploadResponse.data
+        };
       }
       
       const errorMessage = error.response?.data?.error_message || error.message;
