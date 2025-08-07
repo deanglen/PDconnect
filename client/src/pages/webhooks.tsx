@@ -128,7 +128,14 @@ export default function Webhooks() {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="outline" onClick={() => refetchLogs()}>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                refetchLogs();
+                queryClient.invalidateQueries({ queryKey: ['/api/webhook-stats'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/webhook-logs/failed'] });
+              }}
+            >
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh
             </Button>
@@ -228,19 +235,6 @@ export default function Webhooks() {
                 </SelectContent>
               </Select>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  refetchLogs();
-                  queryClient.invalidateQueries({ queryKey: ['/api/webhook-stats'] });
-                  queryClient.invalidateQueries({ queryKey: ['/api/webhook-logs/failed'] });
-                }}
-                className="flex items-center space-x-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span>Refresh</span>
-              </Button>
             </div>
 
             <Card>
