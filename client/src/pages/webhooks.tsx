@@ -418,6 +418,40 @@ export default function Webhooks() {
                                                         <strong>Error:</strong> {action.result.error}
                                                       </p>
                                                     )}
+                                                    
+                                                    {/* API Payload and Response */}
+                                                    {(action.result?.apiPayload || action.result?.apiResponse) && (
+                                                      <div className="mt-3 border-t border-gray-200 dark:border-gray-600 pt-3">
+                                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 text-xs">
+                                                          {action.result?.apiPayload && (
+                                                            <div>
+                                                              <p className="font-semibold mb-1 flex items-center text-blue-700 dark:text-blue-300">
+                                                                <span className="mr-1">📤</span>
+                                                                API Payload
+                                                              </p>
+                                                              <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded p-2 overflow-auto max-h-32">
+                                                                <pre className="text-xs leading-tight">
+                                                                  {JSON.stringify(action.result.apiPayload, null, 2)}
+                                                                </pre>
+                                                              </div>
+                                                            </div>
+                                                          )}
+                                                          {action.result?.apiResponse && (
+                                                            <div>
+                                                              <p className="font-semibold mb-1 flex items-center text-green-700 dark:text-green-300">
+                                                                <span className="mr-1">📥</span>
+                                                                API Response
+                                                              </p>
+                                                              <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded p-2 overflow-auto max-h-32">
+                                                                <pre className="text-xs leading-tight">
+                                                                  {JSON.stringify(action.result.apiResponse, null, 2)}
+                                                                </pre>
+                                                              </div>
+                                                            </div>
+                                                          )}
+                                                        </div>
+                                                      </div>
+                                                    )}
                                                   </div>
                                                 </div>
                                               ))}

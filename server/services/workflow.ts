@@ -40,6 +40,7 @@ export class WorkflowEngine {
     let actionsTriggered = 0;
     let errorMessage: string | undefined;
     let status: 'success' | 'failed' | 'pending' = 'pending';
+    const actionsDetails: any[] = [];
 
     // Create initial webhook log
     const webhookLog = await storage.createWebhookLog({
@@ -67,18 +68,21 @@ export class WorkflowEngine {
             
             if (conditionsMet && rules.then && Array.isArray(rules.then)) {
               for (const action of rules.then) {
-                await this.executeAction(action, payload);
+                const actionResult = await this.executeActionWithTracking(action, payload, workflow.name);
+                actionsDetails.push(actionResult);
                 actionsTriggered++;
               }
             } else if (!conditionsMet && rules.else && Array.isArray(rules.else)) {
               for (const action of rules.else) {
-                await this.executeAction(action, payload);
+                const actionResult = await this.executeActionWithTracking(action, payload, workflow.name);
+                actionsDetails.push(actionResult);
                 actionsTriggered++;
               }
             }
           } else if (workflow.actions && Array.isArray(workflow.actions)) {
             for (const action of workflow.actions) {
-              await this.executeAction(action, payload);
+              const actionResult = await this.executeActionWithTracking(action, payload, workflow.name);
+              actionsDetails.push(actionResult);
               actionsTriggered++;
             }
           }
@@ -97,12 +101,18 @@ export class WorkflowEngine {
 
     const processingTime = Date.now() - startTime;
 
-    // Update webhook log
+    // Update webhook log with action details
     return await storage.updateWebhookLog(webhookLog.id, {
       status,
       actionsTriggered,
       errorMessage,
       processingTimeMs: processingTime,
+      response: {
+        status: status === 'success' ? 'success' : 'error',
+        message: `Webhook processed successfully`,
+        timestamp: new Date().toISOString(),
+        actionsDetails: actionsDetails
+      }
     });
   }
 
@@ -131,6 +141,81 @@ export class WorkflowEngine {
           return false;
       }
     });
+  }
+
+  private async executeActionWithTracking(action: WorkflowAction, payload: any, workflowName: string): Promise<any> {
+    const actionStart = Date.now();
+    let apiPayload: any = null;
+    let apiResponse: any = null;
+    let status = 'success';
+    let message = '';
+    let error: string | undefined;
+
+    try {
+      switch (action.type) {
+        case 'update_sugarcrm':
+          const updateResult = await this.updateSugarCRMRecordWithTracking(action, payload);
+          apiPayload = updateResult.apiPayload;
+          apiResponse = updateResult.apiResponse;
+          message = updateResult.message;
+          break;
+        case 'attach_document':
+          const attachResult = await this.attachDocumentToSugarCRMWithTracking(action, payload);
+          apiPayload = attachResult.apiPayload;
+          apiResponse = attachResult.apiResponse;
+          message = attachResult.message;
+          break;
+        case 'create_note':
+          const noteResult = await this.createSugarCRMNoteWithTracking(action, payload);
+          apiPayload = noteResult.apiPayload;
+          apiResponse = noteResult.apiResponse;
+          message = noteResult.message;
+          break;
+        case 'sync_fields':
+          const syncResult = await this.syncFieldsToSugarCRMWithTracking(action, payload);
+          apiPayload = syncResult.apiPayload;
+          apiResponse = syncResult.apiResponse;
+          message = syncResult.message;
+          break;
+        case 'log_activity':
+          await this.logActivity(action, payload);
+          message = 'Activity logged successfully';
+          break;
+        case 'send_notification':
+          await this.sendNotification(action, payload);
+          message = 'Notification sent successfully';
+          break;
+        default:
+          console.warn(`Unknown action type: ${action.type}`);
+          status = 'error';
+          error = `Unknown action type: ${action.type}`;
+      }
+    } catch (err) {
+      status = 'error';
+      error = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`Error executing action ${action.type}:`, err);
+    }
+
+    const executionTime = Date.now() - actionStart;
+
+    return {
+      workflow: workflowName,
+      condition: 'if_then',
+      action: {
+        type: action.type,
+        details: action
+      },
+      result: {
+        status,
+        actionType: action.type,
+        message,
+        error,
+        executionTimeMs: executionTime,
+        apiPayload,
+        apiResponse,
+        timestamp: new Date().toISOString()
+      }
+    };
   }
 
   private async executeAction(action: WorkflowAction, payload: any): Promise<void> {
@@ -273,6 +358,126 @@ export class WorkflowEngine {
     } else {
       console.log('[FieldSync] No field values to sync');
     }
+  }
+
+  // Tracking versions of action methods that capture API payloads/responses
+  private async updateSugarCRMRecordWithTracking(action: WorkflowAction, payload: any): Promise<{apiPayload: any, apiResponse: any, message: string}> {
+    if (!action.module || !action.field) {
+      throw new Error('Module and field are required for update_sugarcrm action');
+    }
+
+    const recordId = payload.data.metadata?.sugar_record_id;
+    if (!recordId) {
+      throw new Error('No related SugarCRM record found for document');
+    }
+
+    const updateData = {
+      [action.field]: this.interpolateValue(action.value, payload),
+    };
+
+    const response = await this.sugarCrmService.updateRecord(action.module, recordId, updateData);
+    
+    return {
+      apiPayload: {
+        module: action.module,
+        recordId: recordId,
+        updateData: updateData
+      },
+      apiResponse: response,
+      message: `Updated ${action.module} record ${recordId}: ${action.field} = "${updateData[action.field]}"`
+    };
+  }
+
+  private async syncFieldsToSugarCRMWithTracking(action: WorkflowAction, payload: any): Promise<{apiPayload: any, apiResponse: any, message: string}> {
+    const recordId = payload.data.metadata?.sugar_record_id;
+    const sugarModule = payload.data.metadata?.sugar_module || 'Opportunities';
+    
+    if (!recordId) {
+      throw new Error('No SugarCRM record ID found in document metadata');
+    }
+
+    const fieldMappings = await storage.getFieldMappings(this.tenant.id);
+    const documentFields = payload.data.fields || [];
+    const updateData: Record<string, any> = {};
+
+    for (const mapping of fieldMappings) {
+      if (!mapping.isActive) continue;
+
+      const cleanToken = mapping.pandaDocToken
+        .replace(/[\[\]]/g, '')
+        .replace(/[\{\}]/g, '')
+        .toLowerCase();
+
+      const matchingField = documentFields.find((field: any) => {
+        const fieldName = (field.merge_field || field.name || '').toLowerCase();
+        return fieldName === cleanToken || fieldName.includes(cleanToken);
+      });
+
+      if (matchingField && matchingField.value) {
+        updateData[mapping.sugarField] = matchingField.value;
+      }
+    }
+
+    let response = null;
+    let message = '';
+
+    if (Object.keys(updateData).length > 0) {
+      response = await this.sugarCrmService.updateRecord(sugarModule, recordId, updateData);
+      message = `Synced ${Object.keys(updateData).length} fields to ${sugarModule} record ${recordId}`;
+    } else {
+      message = 'No field values to sync';
+    }
+
+    return {
+      apiPayload: {
+        module: sugarModule,
+        recordId: recordId,
+        updateData: updateData,
+        fieldMappingsCount: fieldMappings.length,
+        documentFieldsCount: documentFields.length
+      },
+      apiResponse: response,
+      message: message
+    };
+  }
+
+  private async attachDocumentToSugarCRMWithTracking(action: WorkflowAction, payload: any): Promise<{apiPayload: any, apiResponse: any, message: string}> {
+    return {
+      apiPayload: {
+        documentId: payload.data.id,
+        documentName: payload.data.name,
+        action: 'attach_document'
+      },
+      apiResponse: null,
+      message: 'Document attachment not fully implemented'
+    };
+  }
+
+  private async createSugarCRMNoteWithTracking(action: WorkflowAction, payload: any): Promise<{apiPayload: any, apiResponse: any, message: string}> {
+    if (!action.module || !action.subject) {
+      throw new Error('Module and subject are required for create_note action');
+    }
+
+    const recordId = payload.data.metadata?.sugar_record_id;
+    if (!recordId) {
+      throw new Error('No related SugarCRM record found for document');
+    }
+
+    const subject = this.interpolateValue(action.subject, payload);
+    const description = action.message ? this.interpolateValue(action.message, payload) : undefined;
+
+    const response = await this.sugarCrmService.createNote(action.module, recordId, subject);
+
+    return {
+      apiPayload: {
+        module: action.module,
+        recordId: recordId,
+        subject: subject,
+        description: description
+      },
+      apiResponse: response,
+      message: `Created note "${subject}" for ${action.module} record ${recordId}`
+    };
   }
 
   private async logActivity(action: WorkflowAction, payload: any): Promise<void> {
