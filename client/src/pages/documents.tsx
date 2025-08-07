@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -144,6 +144,7 @@ export default function PDRequestsPage() {
     },
     onSuccess: () => {
       toast({ title: "Success", description: "Document template updated successfully" });
+      setShowCreateForm(false);
       setEditingTemplate(null);
       resetForm();
       queryClient.invalidateQueries({ queryKey: ["/api/document-templates"] });
@@ -513,6 +514,12 @@ export default function PDRequestsPage() {
             <DialogTitle>
               {editingTemplate ? "Edit Request Template" : "Create Request Template"}
             </DialogTitle>
+            <DialogDescription>
+              {editingTemplate 
+                ? "Update the configuration for this PandaDoc request template"
+                : "Configure a new PandaDoc document request template for automated generation from SugarCRM records"
+              }
+            </DialogDescription>
           </DialogHeader>
           
           <Tabs value={configMode} onValueChange={(value) => setConfigMode(value as 'visual' | 'conditions' | 'json')} className="w-full">
@@ -1070,6 +1077,9 @@ return false;`}
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Select SugarCRM Field</DialogTitle>
+            <DialogDescription>
+              Choose a field from your SugarCRM {formData.sugarModule} module to use as a dynamic reference for recipient information.
+            </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
