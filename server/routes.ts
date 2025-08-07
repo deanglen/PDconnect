@@ -596,18 +596,47 @@ export async function handleDocumentCreation(req: Request, res: Response) {
         });
       }
 
+      // Resolve recipients from template configuration and SugarCRM data
+      console.log(`[DocumentCreation] Resolving recipients from template default recipients:`, templateRecord.defaultRecipients);
+      
+      const resolvedRecipients = await TokenMappingService.resolveRecipients(
+        templateRecord.defaultRecipients || [], 
+        record, 
+        sugarService
+      );
+
+      console.log(`[DocumentCreation] Resolved ${resolvedRecipients.length} recipients:`, resolvedRecipients.map(r => ({
+        email: r.email,
+        source: r.source,
+        resolvedFrom: r.resolvedFrom
+      })));
+
+      // Fall back to default recipient if no recipients resolved
+      if (resolvedRecipients.length === 0) {
+        console.log(`[DocumentCreation] No recipients resolved, using fallback recipient`);
+        resolvedRecipients.push({
+          email: 'dustin.anglen@pandadoc.com',
+          first_name: 'Dustin',
+          last_name: 'Anglen',
+          role: 'Signer',
+          source: 'static'
+        });
+      }
+
+      // Convert to PandaDoc format
+      const recipients = resolvedRecipients.map(r => ({
+        email: r.email,
+        first_name: r.first_name || '',
+        last_name: r.last_name || '',
+        role: r.role,
+        signing_order: r.signing_order
+      }));
+
       // Create PandaDoc document
       const createRequest = {
         name: `${record.name || 'Document'} - ${new Date().toLocaleDateString()}`,
         template_uuid: templateRecord.pandaDocTemplateId,
-        recipients: [
-          {
-            email: 'dustin.anglen@pandadoc.com',
-            first_name: 'Dustin',
-            last_name: 'Anglen',
-            role: 'Client',
-          }
-        ],
+        recipients,
         tokens,
         metadata: {
           tenant_id: tenant_id,
