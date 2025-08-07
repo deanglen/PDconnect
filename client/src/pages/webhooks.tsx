@@ -247,6 +247,7 @@ export default function Webhooks() {
                         <TableHead>Received</TableHead>
                         <TableHead>Processed</TableHead>
                         <TableHead>Retries</TableHead>
+                        <TableHead>Response</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -312,6 +313,26 @@ export default function Webhooks() {
                               </div>
                             </TableCell>
                             <TableCell>
+                              {log.response ? (
+                                <div className="text-sm">
+                                  <Badge variant="outline" className={
+                                    log.response.status === 'success' ? 'bg-green-50 text-green-700 border-green-200' :
+                                    log.response.status === 'error' ? 'bg-red-50 text-red-700 border-red-200' :
+                                    'bg-gray-50 text-gray-700 border-gray-200'
+                                  }>
+                                    {log.response.status}
+                                  </Badge>
+                                  {log.response.message && (
+                                    <div className="text-xs text-gray-500 mt-1 truncate max-w-32">
+                                      {log.response.message}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-gray-400">No response</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
                               <div className="flex items-center space-x-2">
                                 <Dialog>
                                   <DialogTrigger asChild>
@@ -358,6 +379,14 @@ export default function Webhooks() {
                                           {JSON.stringify(log.payload, null, 2)}
                                         </pre>
                                       </div>
+                                      {log.response && (
+                                        <div>
+                                          <p className="font-semibold mb-2">Response</p>
+                                          <pre className="bg-blue-50 dark:bg-blue-900 p-4 rounded text-xs overflow-auto max-h-64">
+                                            {JSON.stringify(log.response, null, 2)}
+                                          </pre>
+                                        </div>
+                                      )}
                                     </div>
                                   </DialogContent>
                                 </Dialog>

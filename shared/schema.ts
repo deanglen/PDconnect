@@ -86,6 +86,7 @@ export const webhookLogs = pgTable("webhook_logs", {
   documentId: text("document_id"),
   documentName: text("document_name"),
   payload: jsonb("payload").notNull(),
+  response: jsonb("response"), // Store the middleware response for each webhook
   status: text("status").notNull().default("pending"), // "pending", "processing", "success", "failed", "permanently_failed"
   actionsTriggered: integer("actions_triggered").default(0),
   errorMessage: text("error_message"),

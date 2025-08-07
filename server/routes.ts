@@ -134,7 +134,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: 'duplicate_ignored',
           timestamp: new Date().toISOString(),
         });
-        return res.status(200).json({ message: "Webhook already processed", status: "duplicate" });
+        const response = { message: "Webhook already processed", status: "duplicate" };
+        
+        // Store the response for debugging
+        await storage.updateWebhookLogResponse(existingWebhook.id, response);
+        
+        return res.status(200).json(response);
       }
 
       // Find tenant from document metadata
@@ -147,7 +152,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           stage: 'tenant_identification',
           timestamp: new Date().toISOString(),
         });
-        return res.status(400).json({ message: "Unable to identify tenant" });
+        const response = { message: "Unable to identify tenant" };
+        return res.status(400).json(response);
       }
 
       const tenant = await storage.getTenant(tenantId);
@@ -159,7 +165,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           stage: 'tenant_validation',
           timestamp: new Date().toISOString(),
         });
-        return res.status(404).json({ message: "Tenant not found" });
+        const response = { message: "Tenant not found" };
+        return res.status(404).json(response);
       }
 
       // Verify webhook signature using tenant-specific secret
@@ -172,11 +179,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[Webhook] Successfully persisted webhook ${webhookLog.id}`);
 
       // Return 200 OK immediately after persistence (as required)
-      res.status(200).json({ 
+      const response = { 
         message: "Webhook received and queued for processing", 
         webhookId: webhookLog.id,
         status: "queued" 
-      });
+      };
+      
+      // Store the response in the webhook log for debugging
+      await storage.updateWebhookLogResponse(webhookLog.id, response);
+      
+      res.status(200).json(response);
 
       // Async processing is now handled by WebhookProcessor.persistAndQueue()
       
@@ -189,10 +201,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timestamp: new Date().toISOString(),
       });
       
-      res.status(500).json({ 
+      const response = { 
         message: "Failed to process webhook", 
         error: error instanceof Error ? error.message : "Unknown error" 
-      });
+      };
+      res.status(500).json(response);
     }
   });
 

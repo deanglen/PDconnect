@@ -58,6 +58,7 @@ export interface IStorage {
   getWebhookLogByEventIdAndType(eventId: string, eventType: string): Promise<WebhookLog | undefined>;
   createWebhookLog(log: InsertWebhookLog): Promise<WebhookLog>;
   updateWebhookLog(id: string, log: Partial<InsertWebhookLog>): Promise<WebhookLog>;
+  updateWebhookLogResponse(id: string, response: any): Promise<void>;
   getFailedWebhookLogs(tenantId?: string): Promise<WebhookLog[]>;
   getRetryableWebhookLogs(): Promise<WebhookLog[]>;
 
@@ -419,6 +420,13 @@ export class DatabaseStorage implements IStorage {
       .where(eq(webhookLogs.id, id))
       .returning();
     return updatedLog;
+  }
+
+  async updateWebhookLogResponse(id: string, response: any): Promise<void> {
+    await db
+      .update(webhookLogs)
+      .set({ response, updatedAt: new Date() })
+      .where(eq(webhookLogs.id, id));
   }
 
   async getFailedWebhookLogs(tenantId?: string): Promise<WebhookLog[]> {

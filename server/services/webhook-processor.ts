@@ -122,6 +122,16 @@ export class WebhookProcessor {
         processingTimeMs: processingTime,
         processedAt: new Date(),
       });
+      
+      // Store processing response for debugging
+      const response = {
+        status: 'success',
+        message: 'Webhook processed successfully',
+        actionsTriggered: result.actionsTriggered,
+        processingTimeMs: processingTime,
+        timestamp: new Date().toISOString()
+      };
+      await storage.updateWebhookLogResponse(webhookLogId, response);
 
       logger.logWebhookEvent({
         webhookId: webhookLogId,
@@ -410,6 +420,18 @@ export class WebhookProcessor {
           errorMessage,
           processingTimeMs: processingTime,
         });
+        
+        // Store error response for debugging
+        const response = {
+          status: 'error',
+          message: 'Webhook processing failed permanently',
+          error: errorMessage,
+          retryCount: newRetryCount,
+          maxRetries,
+          processingTimeMs: processingTime,
+          timestamp: new Date().toISOString()
+        };
+        await storage.updateWebhookLogResponse(webhookLogId, response);
 
         logger.logWebhookError({
           webhookId: webhookLogId,
@@ -432,6 +454,18 @@ export class WebhookProcessor {
           processingTimeMs: processingTime,
           nextRetryAt,
         });
+        
+        // Store retry response for debugging
+        const response = {
+          status: 'retry_scheduled',
+          message: 'Webhook processing failed, retry scheduled',
+          error: errorMessage,
+          retryCount: newRetryCount,
+          nextRetryAt: nextRetryAt.toISOString(),
+          processingTimeMs: processingTime,
+          timestamp: new Date().toISOString()
+        };
+        await storage.updateWebhookLogResponse(webhookLogId, response);
 
         // Queue for retry
         await this.queueForProcessing(webhookLogId, retryDelay);
