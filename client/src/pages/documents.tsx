@@ -529,7 +529,7 @@ export default function PDRequestsPage() {
             </TabsList>
             
             <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto max-h-[calc(90vh-10rem)] pr-2">
-              <TabsContent value="visual" className="space-y-6 mt-6">
+            <TabsContent value="visual" className="space-y-6 mt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Request Name *</Label>
@@ -621,31 +621,115 @@ export default function PDRequestsPage() {
               <div className="space-y-2">
                 <Label>Default Recipients</Label>
                 <p className="text-sm text-muted-foreground">
-                  Configure default recipients for documents created from this template.
+                  Configure default recipients for documents created from this template. Supports both static email addresses and dynamic SugarCRM field references.
                 </p>
-                <div className="space-y-2">
-                  {(formData.defaultRecipients as any[])?.map((recipient: any, index: number) => (
-                    <div key={index} className="flex items-center space-x-2 p-3 border rounded">
-                      <Input
-                        placeholder="Email address"
-                        value={recipient.email || ""}
-                        onChange={(e) => {
-                          const newRecipients = [...(formData.defaultRecipients as any[] || [])];
-                          newRecipients[index] = { ...recipient, email: e.target.value };
-                          setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
-                        }}
-                        className="flex-1"
-                      />
-                      <Input
-                        placeholder="Role (e.g., signer)"
-                        value={recipient.role || "signer"}
-                        onChange={(e) => {
-                          const newRecipients = [...(formData.defaultRecipients as any[] || [])];
-                          newRecipients[index] = { ...recipient, role: e.target.value };
-                          setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
-                        }}
-                        className="w-32"
-                      />
+              </div>
+
+              {/* Recipient Configuration Examples */}
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">Email Configuration Examples:</h4>
+                <div className="space-y-1 text-xs text-blue-700 dark:text-blue-300">
+                  <div><strong>Static:</strong> josh@example.com</div>
+                  <div><strong>Dynamic:</strong> opportunity&gt;&gt;Primary Contact&gt;&gt;email</div>
+                  <div><strong>Simple Field:</strong> assigned_user_email</div>
+                  <div><strong>Account Contact:</strong> opportunity&gt;&gt;Account&gt;&gt;email1</div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {(formData.defaultRecipients as any[])?.map((recipient: any, index: number) => (
+                  <div key={index} className="p-4 border rounded-lg space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium">Email Address</Label>
+                        <Input
+                          placeholder="user@example.com or opportunity&gt;&gt;Contact&gt;&gt;email"
+                          value={recipient.email || ""}
+                          onChange={(e) => {
+                            const newRecipients = [...(formData.defaultRecipients as any[] || [])];
+                            newRecipients[index] = { ...recipient, email: e.target.value };
+                            setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
+                          }}
+                          className="w-full"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          {recipient.email?.includes('>>') || (recipient.email?.includes('.') && !recipient.email?.includes('@'))
+                            ? 'Dynamic field reference' 
+                            : recipient.email?.includes('@') 
+                              ? 'Static email address'
+                              : 'Enter static email or dynamic field reference'}
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium">Role</Label>
+                        <Select 
+                          value={recipient.role || "user"} 
+                          onValueChange={(value) => {
+                            const newRecipients = [...(formData.defaultRecipients as any[] || [])];
+                            newRecipients[index] = { ...recipient, role: value };
+                            setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="user">User</SelectItem>
+                            <SelectItem value="signer">Signer</SelectItem>
+                            <SelectItem value="client">Client</SelectItem>
+                            <SelectItem value="approver">Approver</SelectItem>
+                            <SelectItem value="cc">CC</SelectItem>
+                            <SelectItem value="viewer">Viewer</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium">First Name (Optional)</Label>
+                        <Input
+                          placeholder="Josh or opportunity>>Contact>>first_name"
+                          value={recipient.first_name || ""}
+                          onChange={(e) => {
+                            const newRecipients = [...(formData.defaultRecipients as any[] || [])];
+                            newRecipients[index] = { ...recipient, first_name: e.target.value };
+                            setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
+                          }}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium">Last Name (Optional)</Label>
+                        <Input
+                          placeholder="Ron or opportunity>>Contact>>last_name"
+                          value={recipient.last_name || ""}
+                          onChange={(e) => {
+                            const newRecipients = [...(formData.defaultRecipients as any[] || [])];
+                            newRecipients[index] = { ...recipient, last_name: e.target.value };
+                            setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
+                          }}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium">Signing Order</Label>
+                        <Input
+                          type="number"
+                          placeholder="1, 2, 3..."
+                          value={recipient.signing_order || ""}
+                          onChange={(e) => {
+                            const newRecipients = [...(formData.defaultRecipients as any[] || [])];
+                            newRecipients[index] = { ...recipient, signing_order: parseInt(e.target.value) || undefined };
+                            setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
+                          }}
+                          min="1"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end">
                       <Button
                         type="button"
                         variant="ghost"
@@ -654,25 +738,34 @@ export default function PDRequestsPage() {
                           const newRecipients = (formData.defaultRecipients as any[] || []).filter((_, i) => i !== index);
                           setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
                         }}
+                        className="text-red-600 hover:text-red-700"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Remove
                       </Button>
                     </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const newRecipients = [...(formData.defaultRecipients as any[] || []), { email: "", role: "signer" }];
-                      setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
-                    }}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Recipient
-                  </Button>
-                </div>
+                  </div>
+                ))}
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const newRecipients = [...(formData.defaultRecipients as any[] || []), { 
+                      email: "", 
+                      role: "user",
+                      first_name: "",
+                      last_name: "",
+                      signing_order: undefined
+                    }];
+                    setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Recipient
+                </Button>
               </div>
+            </div>
 
               {/* Field Mapping Reference */}
               <div className="space-y-2">
@@ -692,7 +785,6 @@ export default function PDRequestsPage() {
                   </p>
                 </div>
               </div>
-            </div>
 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
@@ -706,10 +798,10 @@ export default function PDRequestsPage() {
                 checked={formData.isActive ?? true}
                 onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isActive: checked }))}
               />
-              </div>
-              </TabsContent>
+            </div>
+            </TabsContent>
 
-              <TabsContent value="conditions" className="space-y-6 mt-6">
+            <TabsContent value="conditions" className="space-y-6 mt-6">
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label>Document Generation Conditions</Label>
