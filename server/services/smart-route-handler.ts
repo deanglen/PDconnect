@@ -51,7 +51,8 @@ export class SmartRouteHandler {
       // Step 2: Extract record ID from payload
       const recordId = this.extractRecordId(payload);
       if (!recordId) {
-        console.log(`[SmartRoute] No record ID found in payload`);
+        console.log(`[SmartRoute] No record ID found in payload. Available fields:`, Object.keys(payload));
+        console.log(`[SmartRoute] Payload structure:`, this.sanitizePayload(payload));
         return null;
       }
 
@@ -142,10 +143,11 @@ export class SmartRouteHandler {
    */
   private static extractRecordId(payload: SugarWebHookPayload): string | null {
     // Try multiple common field names for record ID
-    const possibleFields = ['id', 'record_id', 'bean_id'];
+    const possibleFields = ['id', 'record_id', 'bean_id', 'ID'];
     
     for (const field of possibleFields) {
       if (payload[field] && typeof payload[field] === 'string') {
+        console.log(`[SmartRoute] Found record ID in field '${field}': ${payload[field]}`);
         return payload[field];
       }
     }
@@ -154,15 +156,7 @@ export class SmartRouteHandler {
     if (payload.data && typeof payload.data === 'object') {
       for (const field of possibleFields) {
         if (payload.data[field] && typeof payload.data[field] === 'string') {
-          return payload.data[field];
-        }
-      }
-    }
-
-    // Check if there's a nested data object (SugarCRM Web Logic Hook format)
-    if (payload.data && typeof payload.data === 'object') {
-      for (const field of possibleFields) {
-        if (payload.data[field] && typeof payload.data[field] === 'string') {
+          console.log(`[SmartRoute] Found record ID in data.${field}: ${payload.data[field]}`);
           return payload.data[field];
         }
       }
@@ -172,8 +166,18 @@ export class SmartRouteHandler {
     if (payload.bean && typeof payload.bean === 'object') {
       for (const field of possibleFields) {
         if (payload.bean[field] && typeof payload.bean[field] === 'string') {
+          console.log(`[SmartRoute] Found record ID in bean.${field}: ${payload.bean[field]}`);
           return payload.bean[field];
         }
+      }
+    }
+
+    // SugarCRM often sends the record data directly as top-level fields
+    // If we can't find a specific ID field, look for any field that looks like a SugarCRM ID
+    for (const [key, value] of Object.entries(payload)) {
+      if (typeof value === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value)) {
+        console.log(`[SmartRoute] Found UUID-like record ID in field '${key}': ${value}`);
+        return value;
       }
     }
 
