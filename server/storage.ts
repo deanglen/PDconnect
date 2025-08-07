@@ -55,6 +55,7 @@ export interface IStorage {
   getWebhookLogs(tenantId?: string, status?: string, eventType?: string): Promise<WebhookLog[]>;
   getWebhookLogById(id: string): Promise<WebhookLog | undefined>;
   getWebhookLogByEventId(eventId: string): Promise<WebhookLog | undefined>;
+  getWebhookLogByEventIdAndType(eventId: string, eventType: string): Promise<WebhookLog | undefined>;
   createWebhookLog(log: InsertWebhookLog): Promise<WebhookLog>;
   updateWebhookLog(id: string, log: Partial<InsertWebhookLog>): Promise<WebhookLog>;
   getFailedWebhookLogs(tenantId?: string): Promise<WebhookLog[]>;
@@ -393,6 +394,16 @@ export class DatabaseStorage implements IStorage {
 
   async getWebhookLogByEventId(eventId: string): Promise<WebhookLog | undefined> {
     const [log] = await db.select().from(webhookLogs).where(eq(webhookLogs.eventId, eventId));
+    return log || undefined;
+  }
+
+  async getWebhookLogByEventIdAndType(eventId: string, eventType: string): Promise<WebhookLog | undefined> {
+    const [log] = await db.select().from(webhookLogs).where(
+      and(
+        eq(webhookLogs.eventId, eventId),
+        eq(webhookLogs.eventType, eventType)
+      )
+    );
     return log || undefined;
   }
 

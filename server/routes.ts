@@ -123,8 +123,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const eventType = webhookData.event_type || webhookData.event;
       const eventId = webhookData.event_id || webhookData.data?.id || `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      // Check for duplicate webhook (using event_id for deduplication)
-      const existingWebhook = await storage.getWebhookLogByEventId(eventId);
+      // Check for duplicate webhook (using event_id + event_type for deduplication)
+      // This allows the same document to trigger multiple event types (state_changed, completed, signed)
+      const existingWebhook = await storage.getWebhookLogByEventIdAndType(eventId, eventType);
       if (existingWebhook) {
         logger.logWebhookEvent({
           webhookId: existingWebhook.id,

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, jsonb, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, jsonb, boolean, integer, unique } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -80,7 +80,7 @@ export const workflows = pgTable("workflows", {
 
 export const webhookLogs = pgTable("webhook_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  eventId: text("event_id").unique(), // PandaDoc event ID for deduplication
+  eventId: text("event_id").notNull(), // PandaDoc event ID for deduplication
   tenantId: varchar("tenant_id").references(() => tenants.id, { onDelete: "set null" }),
   eventType: text("event_type").notNull(),
   documentId: text("document_id"),
@@ -97,7 +97,10 @@ export const webhookLogs = pgTable("webhook_logs", {
   processedAt: timestamp("processed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  // Composite unique constraint to allow same event_id with different event_type
+  uniqueEventIdType: unique().on(table.eventId, table.eventType),
+}));
 
 export const documents = pgTable("documents", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
