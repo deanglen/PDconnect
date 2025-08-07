@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { RefreshCw, Play, AlertTriangle, CheckCircle, Clock, XCircle, AlertCircle } from "lucide-react";
@@ -356,6 +356,9 @@ export default function Webhooks() {
                                   <DialogContent className="max-w-4xl">
                                     <DialogHeader>
                                       <DialogTitle>Webhook Details - {log.eventType}</DialogTitle>
+                                      <DialogDescription>
+                                        View detailed information about this webhook event including payload, response, and triggered actions.
+                                      </DialogDescription>
                                     </DialogHeader>
                                     <div className="space-y-4">
                                       <div className="grid grid-cols-2 gap-4">
