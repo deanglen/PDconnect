@@ -112,7 +112,7 @@ export default function Webhooks() {
     <div className="flex-1 overflow-auto">
       <Topbar 
         title="Webhook Management" 
-        description="Monitor and manage PandaDoc webhook events with persistent storage and retry capabilities"
+        description="Monitor SugarCRM document creation requests and PandaDoc webhook events with persistent storage and retry capabilities"
         actions={
           <div className="flex items-center space-x-3">
             <Select value={selectedTenant} onValueChange={setSelectedTenant}>
@@ -212,16 +212,18 @@ export default function Webhooks() {
                 </SelectContent>
               </Select>
               <Select value={eventFilter} onValueChange={setEventFilter}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-64">
                   <SelectValue placeholder="All events" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Events</SelectItem>
-                  <SelectItem value="document_signed">Document Signed</SelectItem>
-                  <SelectItem value="document_viewed">Document Viewed</SelectItem>
-                  <SelectItem value="document_created">Document Created</SelectItem>
-                  <SelectItem value="document_declined">Document Declined</SelectItem>
-                  <SelectItem value="document_updated">Document Updated</SelectItem>
+                  <SelectItem value="sugarcrm.document_creation_requested">SugarCRM - Document Creation</SelectItem>
+                  <SelectItem value="document_signed">PandaDoc - Document Signed</SelectItem>
+                  <SelectItem value="document_viewed">PandaDoc - Document Viewed</SelectItem>
+                  <SelectItem value="document_created">PandaDoc - Document Created</SelectItem>
+                  <SelectItem value="document_declined">PandaDoc - Document Declined</SelectItem>
+                  <SelectItem value="document_updated">PandaDoc - Document Updated</SelectItem>
+                  <SelectItem value="document_completed">PandaDoc - Document Completed</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -261,7 +263,20 @@ export default function Webhooks() {
                                 </Badge>
                               </div>
                             </TableCell>
-                            <TableCell>{log.eventType}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                {log.eventType?.startsWith('sugarcrm.') ? (
+                                  <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                                    SugarCRM
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                    PandaDoc
+                                  </Badge>
+                                )}
+                                <span className="text-sm">{log.eventType}</span>
+                              </div>
+                            </TableCell>
                             <TableCell>
                               <div>
                                 <div className="font-medium">{log.documentName || 'N/A'}</div>

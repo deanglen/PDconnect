@@ -601,6 +601,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 // Shared document creation handler - exported for use by webhook routes
 export async function handleDocumentCreation(req: Request, res: Response) {
+    const startTime = Date.now();
+    let webhookLogId: string | null = null;
+    
     try {
       const { record_id, module, tenant_id, template_id } = req.body;
 
@@ -611,6 +614,22 @@ export async function handleDocumentCreation(req: Request, res: Response) {
           message: "Please provide record_id, module, tenant_id, and template_id"
         });
       }
+
+      // Log SugarCRM webhook event
+      const eventId = `sugarcrm_${record_id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const webhookLog = await storage.createWebhookLog({
+        eventId,
+        tenantId: tenant_id,
+        eventType: "sugarcrm.document_creation_requested",
+        documentId: null, // Will be updated after document creation
+        documentName: null,
+        payload: req.body,
+        status: "processing",
+        actionsTriggered: 0,
+        retryCount: 0,
+        maxRetries: 1, // SugarCRM webhooks typically don't need retries
+      });
+      webhookLogId = webhookLog.id;
 
       const tenant = await storage.getTenant(tenant_id);
       if (!tenant) {
@@ -672,6 +691,18 @@ export async function handleDocumentCreation(req: Request, res: Response) {
           module
         });
         
+        // Update webhook log for skipped generation
+        if (webhookLogId) {
+          const processingTime = Date.now() - startTime;
+          await storage.updateWebhookLog(webhookLogId, {
+            status: "success",
+            actionsTriggered: 0,
+            processingTimeMs: processingTime,
+            processedAt: new Date(),
+            errorMessage: "Document generation skipped - conditions not met",
+          });
+        }
+        
         return res.json({
           success: true,
           skipped: true,
@@ -679,7 +710,8 @@ export async function handleDocumentCreation(req: Request, res: Response) {
           message: "Document creation was skipped due to configured conditions",
           recordId: record_id,
           module,
-          templateId: template_id
+          templateId: template_id,
+          webhookEventId: eventId
         });
       }
 
@@ -705,7 +737,7 @@ export async function handleDocumentCreation(req: Request, res: Response) {
           email: 'dustin.anglen@pandadoc.com',
           first_name: 'Dustin',
           last_name: 'Anglen',
-          role: 'Signer',
+          role: 'Client', // Changed to match PandaDoc template role
           source: 'static'
         });
       }
@@ -735,7 +767,7 @@ export async function handleDocumentCreation(req: Request, res: Response) {
       const pandaDoc = await pandaService.createDocument(createRequest);
 
       // Save document record
-      await storage.createDocument({
+      const documentRecord = await storage.createDocument({
         tenantId: tenant_id,
         pandaDocId: pandaDoc.id,
         sugarRecordId: record_id,
@@ -745,16 +777,48 @@ export async function handleDocumentCreation(req: Request, res: Response) {
         publicUrl: pandaService.generatePublicLink(pandaDoc.id),
       });
 
+      // Update webhook log with success
+      if (webhookLogId) {
+        const processingTime = Date.now() - startTime;
+        await storage.updateWebhookLog(webhookLogId, {
+          status: "success",
+          documentId: pandaDoc.id,
+          documentName: pandaDoc.name,
+          actionsTriggered: 1,
+          processingTimeMs: processingTime,
+          processedAt: new Date(),
+        });
+      }
+
+      console.log(`[SugarCRM Webhook] Document creation successful:`, {
+        eventId,
+        documentId: pandaDoc.id,
+        processingTimeMs: Date.now() - startTime
+      });
+
       return res.json({
         success: true,
         documentId: pandaDoc.id,
         publicLink: pandaService.generatePublicLink(pandaDoc.id),
         status: pandaDoc.status,
-        message: "Document created successfully"
+        message: "Document created successfully",
+        webhookEventId: eventId
       });
 
     } catch (error) {
       console.error('Create document error:', error);
+      
+      // Update webhook log with failure
+      if (webhookLogId) {
+        const processingTime = Date.now() - startTime;
+        await storage.updateWebhookLog(webhookLogId, {
+          status: "failed",
+          errorMessage: error instanceof Error ? error.message : "Unknown error occurred",
+          processingTimeMs: processingTime,
+          processedAt: new Date(),
+        });
+      }
+
       return res.status(500).json({ 
         success: false,
         error: "Document creation failed",
