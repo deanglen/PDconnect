@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { FileText, Plus, Edit, Trash2, Copy, Settings, Code2 } from "lucide-react";
+import { FileText, Plus, Edit, Trash2, Copy, Settings, Code2, Search, ChevronDown } from "lucide-react";
 import type { Tenant, DocumentTemplate, InsertDocumentTemplate } from "@shared/schema";
 
 export default function PDRequestsPage() {
@@ -45,6 +45,9 @@ export default function PDRequestsPage() {
     isActive: true,
     isDefault: false
   });
+
+  // Field selector state
+  const [showFieldSelector, setShowFieldSelector] = useState<{recipientIndex: number, fieldType: string} | null>(null);
 
   // Fetch tenants
   const { data: tenants = [] } = useQuery<Tenant[]>({
@@ -642,16 +645,28 @@ export default function PDRequestsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label className="text-xs font-medium">Email Address</Label>
-                        <Input
-                          placeholder="user@example.com or opportunity&gt;&gt;Contact&gt;&gt;email"
-                          value={recipient.email || ""}
-                          onChange={(e) => {
-                            const newRecipients = [...(formData.defaultRecipients as any[] || [])];
-                            newRecipients[index] = { ...recipient, email: e.target.value };
-                            setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
-                          }}
-                          className="w-full"
-                        />
+                        <div className="relative">
+                          <Input
+                            placeholder="user@example.com or opportunity&gt;&gt;Contact&gt;&gt;email"
+                            value={recipient.email || ""}
+                            onChange={(e) => {
+                              const newRecipients = [...(formData.defaultRecipients as any[] || [])];
+                              newRecipients[index] = { ...recipient, email: e.target.value };
+                              setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
+                            }}
+                            className="w-full pr-8"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-1 top-1 h-6 w-6 p-0"
+                            onClick={() => setShowFieldSelector({recipientIndex: index, fieldType: 'email'})}
+                            title="Select SugarCRM field"
+                          >
+                            <Search className="h-3 w-3" />
+                          </Button>
+                        </div>
                         <p className="text-xs text-muted-foreground">
                           {recipient.email?.includes('>>') || (recipient.email?.includes('.') && !recipient.email?.includes('@'))
                             ? 'Dynamic field reference' 
@@ -663,54 +678,72 @@ export default function PDRequestsPage() {
                       
                       <div className="space-y-2">
                         <Label className="text-xs font-medium">Role</Label>
-                        <Select 
-                          value={recipient.role || "user"} 
-                          onValueChange={(value) => {
+                        <Input
+                          placeholder="signer, user, approver, cc, viewer"
+                          value={recipient.role || ""}
+                          onChange={(e) => {
                             const newRecipients = [...(formData.defaultRecipients as any[] || [])];
-                            newRecipients[index] = { ...recipient, role: value };
+                            newRecipients[index] = { ...recipient, role: e.target.value };
                             setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
                           }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="user">User</SelectItem>
-                            <SelectItem value="signer">Signer</SelectItem>
-                            <SelectItem value="client">Client</SelectItem>
-                            <SelectItem value="approver">Approver</SelectItem>
-                            <SelectItem value="cc">CC</SelectItem>
-                            <SelectItem value="viewer">Viewer</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Common roles: signer, user, approver, cc, viewer. Custom roles supported.
+                        </p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div className="space-y-2">
                         <Label className="text-xs font-medium">First Name (Optional)</Label>
-                        <Input
-                          placeholder="Josh or opportunity>>Contact>>first_name"
-                          value={recipient.first_name || ""}
-                          onChange={(e) => {
-                            const newRecipients = [...(formData.defaultRecipients as any[] || [])];
-                            newRecipients[index] = { ...recipient, first_name: e.target.value };
-                            setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
-                          }}
-                        />
+                        <div className="relative">
+                          <Input
+                            placeholder="Josh or opportunity>>Contact>>first_name"
+                            value={recipient.first_name || ""}
+                            onChange={(e) => {
+                              const newRecipients = [...(formData.defaultRecipients as any[] || [])];
+                              newRecipients[index] = { ...recipient, first_name: e.target.value };
+                              setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
+                            }}
+                            className="pr-8"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-1 top-1 h-6 w-6 p-0"
+                            onClick={() => setShowFieldSelector({recipientIndex: index, fieldType: 'first_name'})}
+                            title="Select SugarCRM field"
+                          >
+                            <Search className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                       
                       <div className="space-y-2">
                         <Label className="text-xs font-medium">Last Name (Optional)</Label>
-                        <Input
-                          placeholder="Ron or opportunity>>Contact>>last_name"
-                          value={recipient.last_name || ""}
-                          onChange={(e) => {
-                            const newRecipients = [...(formData.defaultRecipients as any[] || [])];
-                            newRecipients[index] = { ...recipient, last_name: e.target.value };
-                            setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
-                          }}
-                        />
+                        <div className="relative">
+                          <Input
+                            placeholder="Ron or opportunity>>Contact>>last_name"
+                            value={recipient.last_name || ""}
+                            onChange={(e) => {
+                              const newRecipients = [...(formData.defaultRecipients as any[] || [])];
+                              newRecipients[index] = { ...recipient, last_name: e.target.value };
+                              setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
+                            }}
+                            className="pr-8"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-1 top-1 h-6 w-6 p-0"
+                            onClick={() => setShowFieldSelector({recipientIndex: index, fieldType: 'last_name'})}
+                            title="Select SugarCRM field"
+                          >
+                            <Search className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
 
                       <div className="space-y-2">
@@ -1029,6 +1062,117 @@ return false;`}
               </div>
             </form>
           </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      {/* Field Selector Dialog */}
+      <Dialog open={!!showFieldSelector} onOpenChange={(open) => !open && setShowFieldSelector(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Select SugarCRM Field</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Choose a field from your SugarCRM {formData.sugarModule} module to use as a dynamic reference.
+            </p>
+            
+            {sugarFields.length === 0 ? (
+              <div className="p-4 border rounded-lg bg-muted/50">
+                <p className="text-sm text-muted-foreground">
+                  No fields available. Make sure you have selected a tenant and module.
+                </p>
+              </div>
+            ) : (
+              <div className="max-h-60 overflow-y-auto">
+                <div className="space-y-1">
+                  {sugarFields
+                    .filter((field: any) => 
+                      showFieldSelector?.fieldType === 'email' 
+                        ? field.type === 'email' || field.name.toLowerCase().includes('email')
+                        : showFieldSelector?.fieldType === 'first_name'
+                          ? field.name.toLowerCase().includes('first') || field.name.toLowerCase().includes('name')
+                          : showFieldSelector?.fieldType === 'last_name'
+                            ? field.name.toLowerCase().includes('last') || field.name.toLowerCase().includes('name')
+                            : true
+                    )
+                    .map((field: any) => (
+                      <Button
+                        key={field.name}
+                        variant="ghost"
+                        className="w-full justify-start h-auto p-3"
+                        onClick={() => {
+                          if (showFieldSelector) {
+                            const newRecipients = [...(formData.defaultRecipients as any[] || [])];
+                            const recipient = newRecipients[showFieldSelector.recipientIndex] || {};
+                            
+                            // Set the field value based on field type
+                            recipient[showFieldSelector.fieldType] = field.name;
+                            newRecipients[showFieldSelector.recipientIndex] = recipient;
+                            
+                            setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
+                            setShowFieldSelector(null);
+                          }
+                        }}
+                      >
+                        <div className="text-left">
+                          <div className="font-medium">{field.label}</div>
+                          <div className="text-xs text-muted-foreground">{field.name}</div>
+                          <div className="text-xs text-blue-600">{field.type}</div>
+                        </div>
+                      </Button>
+                    ))}
+                </div>
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Relationship Fields</Label>
+              <p className="text-xs text-muted-foreground">
+                For related records, use this format: opportunity&gt;&gt;Primary Contact&gt;&gt;email
+              </p>
+              <div className="grid grid-cols-1 gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (showFieldSelector) {
+                      const newRecipients = [...(formData.defaultRecipients as any[] || [])];
+                      const recipient = newRecipients[showFieldSelector.recipientIndex] || {};
+                      
+                      const fieldType = showFieldSelector.fieldType;
+                      recipient[fieldType] = `opportunity>>Primary Contact>>${fieldType === 'email' ? 'email' : fieldType}`;
+                      newRecipients[showFieldSelector.recipientIndex] = recipient;
+                      
+                      setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
+                      setShowFieldSelector(null);
+                    }
+                  }}
+                >
+                  Primary Contact {showFieldSelector?.fieldType === 'email' ? 'Email' : showFieldSelector?.fieldType?.replace('_', ' ')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (showFieldSelector) {
+                      const newRecipients = [...(formData.defaultRecipients as any[] || [])];
+                      const recipient = newRecipients[showFieldSelector.recipientIndex] || {};
+                      
+                      const fieldType = showFieldSelector.fieldType;
+                      recipient[fieldType] = `opportunity>>Account>>${fieldType === 'email' ? 'email1' : fieldType}`;
+                      newRecipients[showFieldSelector.recipientIndex] = recipient;
+                      
+                      setFormData(prev => ({ ...prev, defaultRecipients: newRecipients }));
+                      setShowFieldSelector(null);
+                    }
+                  }}
+                >
+                  Account Contact {showFieldSelector?.fieldType === 'email' ? 'Email' : showFieldSelector?.fieldType?.replace('_', ' ')}
+                </Button>
+              </div>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
