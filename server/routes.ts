@@ -168,7 +168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // PERSIST WEBHOOK IMMEDIATELY - This is the key requirement
       console.log(`[Webhook] About to persist webhook for tenant ${tenantId}, event: ${eventType}`);
-      const webhookLog = await WebhookProcessor.persistAndQueue(req.body, tenantId, eventId);
+      const webhookLog = await WebhookProcessor.persistAndQueue(webhookData, tenantId, eventId);
       console.log(`[Webhook] Successfully persisted webhook ${webhookLog.id}`);
 
       // Return 200 OK immediately after persistence (as required)
