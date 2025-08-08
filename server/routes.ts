@@ -394,17 +394,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: `${activeTemplate.name} - ${opportunityData.name || 'Opportunity'}`,
         template_uuid: activeTemplate.pandaDocTemplateId,
         folder_uuid: activeTemplate.folderUuid || undefined,
-        recipients: resolvedRecipients.map(r => ({
+        recipients: resolvedRecipients.map((r: any) => ({
           email: r.email,
           first_name: r.first_name,
           last_name: r.last_name,
           role: r.role,
           signing_order: r.signing_order || 1
         })),
-        tokens: activeTemplate.tokenMappings?.map((mapping: any) => ({
+        tokens: (activeTemplate.tokenMappings || []).map((mapping: any) => ({
           name: mapping.panda_doc_token || mapping.sugar_field,
           value: opportunityData[mapping.sugar_field] || ''
-        })) || [],
+        })),
         metadata: {
           tenant_id: tenantId,
           template_id: activeTemplate.id,

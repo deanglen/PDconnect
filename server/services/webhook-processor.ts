@@ -649,10 +649,10 @@ export class WebhookProcessor {
 
         if (fieldValuesLookup.hasOwnProperty(cleanTokenName)) {
           const fieldValue = fieldValuesLookup[cleanTokenName];
-          sugarUpdateData[mapping.sugarCrmField] = fieldValue;
+          sugarUpdateData[mapping.sugarField] = fieldValue;
           mappedFieldsCount++;
           
-          console.log(`[WebhookProcessor] Mapped field: ${mapping.pandaDocToken} -> ${mapping.sugarCrmField} = ${fieldValue}`);
+          console.log(`[WebhookProcessor] Mapped field: ${mapping.pandaDocToken} -> ${mapping.sugarField} = ${fieldValue}`);
         } else {
           console.log(`[WebhookProcessor] No value found for PandaDoc token: ${mapping.pandaDocToken} (cleaned: ${cleanTokenName})`);
         }
