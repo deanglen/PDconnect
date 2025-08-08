@@ -731,22 +731,24 @@ export default function Mappings() {
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
-                                className="text-blue-600 hover:text-blue-700"
+                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                                 onClick={() => handleEditMapping(mapping)}
+                                title="Edit field mapping"
                               >
-                                <i className="fas fa-edit"></i>
+                                <i className="fas fa-edit text-blue-600"></i>
                               </Button>
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
-                                className="text-red-600 hover:text-red-700"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                 onClick={() => {
                                   if (confirm('Are you sure you want to delete this field mapping?')) {
                                     deleteMutation.mutate(mapping.id);
                                   }
                                 }}
+                                title="Delete field mapping"
                               >
-                                <i className="fas fa-trash"></i>
+                                <i className="fas fa-trash text-red-600"></i>
                               </Button>
                             </div>
                           </div>
