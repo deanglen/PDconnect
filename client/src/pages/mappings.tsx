@@ -477,7 +477,7 @@ export default function Mappings() {
                           <FormItem>
                             <FormLabel>Field Label</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Display label for the field" />
+                              <Input {...field} value={field.value || ""} placeholder="Display label for the field" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
