@@ -5,7 +5,7 @@ interface SidebarProps {
 }
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: 'fas fa-tachometer-alt' },
+  { name: 'Webhook Logs', href: '/', icon: 'fas fa-exchange-alt' },
   { name: 'Tenant Config', href: '/tenants', icon: 'fas fa-building' },
   { name: 'Live Testing', href: '/live-testing', icon: 'fas fa-vial' },
   { name: 'Field Mappings', href: '/mappings', icon: 'fas fa-arrows-alt-h' },
@@ -13,7 +13,6 @@ const navigation = [
   { name: 'PD Requests', href: '/documents', icon: 'fas fa-file-alt' },
   { name: 'Token Explorer', href: '/tokens', icon: 'fas fa-tags' },
   { name: 'Smart Routes', href: '/routes', icon: 'fas fa-route' },
-  { name: 'Webhook Logs', href: '/webhooks', icon: 'fas fa-exchange-alt' },
   { name: 'User Management', href: '/users', icon: 'fas fa-users' },
 ];
 

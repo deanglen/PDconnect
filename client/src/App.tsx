@@ -7,7 +7,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { UserProfile } from "@/components/layout/user-profile";
 import { useAuth } from "@/hooks/useAuth";
 import "@/utils/auth-debug"; // Enable debug utilities
-import Dashboard from "@/pages/dashboard";
+
 import Tenants from "@/pages/tenants";
 import Mappings from "@/pages/mappings";
 import Workflows from "@/pages/workflows";
@@ -47,7 +47,7 @@ function Router() {
         </div>
         <div className="p-6">
           <Switch>
-            <Route path="/" component={Dashboard} />
+            <Route path="/" component={Webhooks} />
             <Route path="/tenants" component={Tenants} />
             <Route path="/mappings" component={Mappings} />
             <Route path="/workflows" component={Workflows} />

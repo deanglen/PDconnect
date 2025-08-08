@@ -111,8 +111,8 @@ export default function Webhooks() {
   return (
     <div className="flex-1 overflow-auto">
       <Topbar 
-        title="Webhook Management" 
-        description="Monitor SugarCRM document creation requests and PandaDoc webhook events with persistent storage and retry capabilities"
+        title="Integration Activity" 
+        description="Real-time monitoring of SugarCRM ↔ PandaDoc document workflows and webhook automation"
         actions={
           <div className="flex items-center space-x-3">
             <Select value={selectedTenant} onValueChange={setSelectedTenant}>
