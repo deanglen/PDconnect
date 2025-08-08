@@ -1416,6 +1416,25 @@ function addWebhookRoutes(app: Express) {
     }
   });
 
+  app.put("/api/field-mappings/:id", async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertFieldMappingSchema.partial().parse(req.body);
+      const mapping = await storage.updateFieldMapping(id, validatedData);
+      
+      if (!mapping) {
+        return res.status(404).json({ message: "Field mapping not found" });
+      }
+      
+      res.json(mapping);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update field mapping" });
+    }
+  });
+
   app.delete("/api/field-mappings/:id", async (req: Request, res: Response) => {
     try {
       const { id } = req.params;

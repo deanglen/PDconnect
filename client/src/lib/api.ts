@@ -132,6 +132,13 @@ export const api = {
     });
   },
 
+  async updateFieldMapping(id: string, data: any) {
+    return await apiRequest(`/api/field-mappings/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
   async deleteFieldMapping(id: string) {
     await apiRequest(`/api/field-mappings/${id}`, {
       method: "DELETE",

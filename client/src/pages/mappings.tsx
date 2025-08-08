@@ -25,6 +25,8 @@ export default function Mappings() {
   const [selectedTenant, setSelectedTenant] = useState<string>("");
   const [activeModule, setActiveModule] = useState("opportunities");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingMapping, setEditingMapping] = useState<any>(null);
   const [showJsonView, setShowJsonView] = useState(false);
   const [jsonData, setJsonData] = useState("");
   const { toast } = useToast();
@@ -98,7 +100,44 @@ export default function Mappings() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string, data: any }) => {
+      return await api.updateFieldMapping(id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/field-mappings'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tokens'] });
+      setIsEditDialogOpen(false);
+      setEditingMapping(null);
+      editForm.reset();
+      toast({
+        title: "Success",
+        description: "Field mapping updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update field mapping",
+        variant: "destructive",
+      });
+    },
+  });
+
   const form = useForm<z.infer<typeof insertFieldMappingSchema>>({
+    resolver: zodResolver(insertFieldMappingSchema),
+    defaultValues: {
+      tenantId: selectedTenant || "",
+      sugarModule: activeModule || "",
+      sugarField: "",
+      sugarFieldLabel: "",
+      sugarFieldType: "",
+      pandaDocToken: "",
+      isActive: true,
+    },
+  });
+
+  const editForm = useForm<z.infer<typeof insertFieldMappingSchema>>({
     resolver: zodResolver(insertFieldMappingSchema),
     defaultValues: {
       tenantId: selectedTenant || "",
@@ -115,7 +154,22 @@ export default function Mappings() {
   useEffect(() => {
     form.setValue('tenantId', selectedTenant || "");
     form.setValue('sugarModule', activeModule || "");
-  }, [selectedTenant, activeModule, form]);
+    editForm.setValue('tenantId', selectedTenant || "");
+    editForm.setValue('sugarModule', activeModule || "");
+  }, [selectedTenant, activeModule, form, editForm]);
+
+  // Update edit form when editing mapping changes
+  useEffect(() => {
+    if (editingMapping) {
+      editForm.setValue('tenantId', editingMapping.tenantId || selectedTenant);
+      editForm.setValue('sugarModule', editingMapping.sugarModule || activeModule);
+      editForm.setValue('sugarField', editingMapping.sugarField);
+      editForm.setValue('sugarFieldLabel', editingMapping.sugarFieldLabel);
+      editForm.setValue('sugarFieldType', editingMapping.sugarFieldType);
+      editForm.setValue('pandaDocToken', editingMapping.pandaDocToken);
+      editForm.setValue('isActive', editingMapping.isActive ?? true);
+    }
+  }, [editingMapping, editForm, selectedTenant, activeModule]);
 
   const onSubmit = (values: z.infer<typeof insertFieldMappingSchema>) => {
     console.log('Form submission triggered!');
@@ -135,6 +189,24 @@ export default function Mappings() {
       tenantId: selectedTenant,
       sugarModule: activeModule,
     });
+  };
+
+  const onEditSubmit = (values: z.infer<typeof insertFieldMappingSchema>) => {
+    if (!editingMapping) return;
+    
+    updateMutation.mutate({
+      id: editingMapping.id,
+      data: {
+        ...values,
+        tenantId: selectedTenant,
+        sugarModule: activeModule,
+      }
+    });
+  };
+
+  const handleEditMapping = (mapping: any) => {
+    setEditingMapping(mapping);
+    setIsEditDialogOpen(true);
   };
 
   const modules = [
@@ -374,6 +446,84 @@ export default function Mappings() {
                   </Form>
                 </DialogContent>
               </Dialog>
+
+              {/* Edit Field Mapping Dialog */}
+              <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Edit Field Mapping</DialogTitle>
+                  </DialogHeader>
+                  
+                  <Form {...editForm}>
+                    <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+                      <FormField
+                        control={editForm.control}
+                        name="sugarField"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>SugarCRM Field</FormLabel>
+                            <FormControl>
+                              <Input {...field} disabled />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={editForm.control}
+                        name="sugarFieldLabel"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Field Label</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Display label for the field" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={editForm.control}
+                        name="pandaDocToken"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>PandaDoc Token</FormLabel>
+                            <FormControl>
+                              <Input 
+                                {...field} 
+                                placeholder="e.g., [FieldName] or {{field_name}}" 
+                              />
+                            </FormControl>
+                            <div className="text-xs text-gray-500">
+                              <p className="text-xs text-gray-500">
+                                Supported formats: [field_name] or {`{{field_name}}`}
+                              </p>
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="flex justify-end space-x-2 pt-4">
+                        <Button type="button" variant="outline" onClick={() => {
+                          setIsEditDialogOpen(false);
+                          setEditingMapping(null);
+                          editForm.reset();
+                        }}>
+                          Cancel
+                        </Button>
+                        <Button 
+                          type="submit" 
+                          disabled={updateMutation.isPending}
+                        >
+                          {updateMutation.isPending ? "Updating..." : "Update Mapping"}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
               </div>
             )}
           </div>
@@ -577,18 +727,28 @@ export default function Mappings() {
                                 )}
                               </div>
                             </div>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="text-red-600 hover:text-red-700"
-                              onClick={() => {
-                                if (confirm('Are you sure you want to delete this field mapping?')) {
-                                  deleteMutation.mutate(mapping.id);
-                                }
-                              }}
-                            >
-                              <i className="fas fa-trash"></i>
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-blue-600 hover:text-blue-700"
+                                onClick={() => handleEditMapping(mapping)}
+                              >
+                                <i className="fas fa-edit"></i>
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-red-600 hover:text-red-700"
+                                onClick={() => {
+                                  if (confirm('Are you sure you want to delete this field mapping?')) {
+                                    deleteMutation.mutate(mapping.id);
+                                  }
+                                }}
+                              >
+                                <i className="fas fa-trash"></i>
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       ))}
